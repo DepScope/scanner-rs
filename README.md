@@ -201,13 +201,10 @@ MIT OR Apache-2.0
 ### Quick Release
 
 ```bash
-# Check if ready to release
-./check-release.sh
-
-# Create a release (native architecture only)
-./release.sh --patch   # 0.1.0 → 0.1.1
-./release.sh --minor   # 0.1.0 → 0.2.0
-./release.sh --major   # 0.1.0 → 1.0.0
+# Create a release (automatically builds all possible binaries)
+./release-all.sh --patch   # 0.1.0 → 0.1.1
+./release-all.sh --minor   # 0.1.0 → 0.2.0
+./release-all.sh --major   # 0.1.0 → 1.0.0
 
 # Or use make
 make release-patch
@@ -215,16 +212,18 @@ make release-minor
 make release-major
 ```
 
-The release script will:
-1. Bump version in `Cargo.toml`
-2. Create and push a git tag
-3. Build binaries for your architecture
-4. Cross-compile for other architectures (if rustup is installed)
+The unified release script (`release-all.sh`) will:
+1. Run pre-flight checks (git, GitHub CLI, uncommitted changes)
+2. Bump version in `Cargo.toml`
+3. Create and push a git tag
+4. Build binaries for all available architectures
 5. Create a GitHub release with all binaries
 
-**Note**: For cross-compilation (building for multiple architectures), you need rustup. See [CROSS_COMPILE_SETUP.md](CROSS_COMPILE_SETUP.md) for setup instructions.
+**Binaries created**:
+- Always: Native binary for your current architecture
+- With rustup: Additional binaries for other architectures (x86_64 + aarch64)
 
-See [RELEASE.md](RELEASE.md) for detailed documentation.
+See [RELEASE_ALL_README.md](RELEASE_ALL_README.md) for detailed documentation.
 
 ## Contributing
 
