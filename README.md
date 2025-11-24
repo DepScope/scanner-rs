@@ -15,6 +15,27 @@ A high-performance multi-language dependency scanner for Python, Node.js, and Ru
 
 ## Installation
 
+### From Release (Recommended)
+
+Download the latest binary for your platform from the [releases page](https://github.com/DepScope/scanner-rs/releases):
+
+```bash
+# macOS Apple Silicon (M1/M2)
+curl -L https://github.com/DepScope/scanner-rs/releases/latest/download/scanner-darwin-aarch64.tar.gz | tar xz
+
+# macOS Intel
+curl -L https://github.com/DepScope/scanner-rs/releases/latest/download/scanner-darwin-x86_64.tar.gz | tar xz
+
+# Linux x86_64
+curl -L https://github.com/DepScope/scanner-rs/releases/latest/download/scanner-linux-x86_64.tar.gz | tar xz
+
+# Make executable and move to PATH
+chmod +x scanner
+sudo mv scanner /usr/local/bin/
+```
+
+### From Source
+
 ```bash
 cargo build --release
 ```
@@ -174,6 +195,35 @@ scanner --jobs 16
 ## License
 
 MIT OR Apache-2.0
+
+## Releasing
+
+### Quick Release
+
+```bash
+# Create a release (automatically builds all possible binaries)
+./release-all.sh --patch   # 0.1.0 → 0.1.1
+./release-all.sh --minor   # 0.1.0 → 0.2.0
+./release-all.sh --major   # 0.1.0 → 1.0.0
+
+# Or use make
+make release-patch
+make release-minor
+make release-major
+```
+
+The unified release script (`release-all.sh`) will:
+1. Run pre-flight checks (git, GitHub CLI, uncommitted changes)
+2. Bump version in `Cargo.toml`
+3. Create and push a git tag
+4. Build binaries for all available architectures
+5. Create a GitHub release with all binaries
+
+**Binaries created**:
+- Always: Native binary for your current architecture
+- With rustup: Additional binaries for other architectures (x86_64 + aarch64)
+
+See [RELEASING.md](RELEASING.md) for complete documentation.
 
 ## Contributing
 
