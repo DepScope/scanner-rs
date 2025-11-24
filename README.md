@@ -223,7 +223,7 @@ The unified release script (`release-all.sh`) will:
 - Always: Native binary for your current architecture
 - With rustup: Additional binaries for other architectures (x86_64 + aarch64)
 
-See [RELEASE_ALL_README.md](RELEASE_ALL_README.md) for detailed documentation.
+See [RELEASING.md](RELEASING.md) for complete documentation.
 
 ## Contributing
 
