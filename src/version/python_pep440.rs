@@ -40,42 +40,42 @@ pub fn satisfies(version: &str, specifier: &str) -> Result<bool, ScanError> {
     let version_parts = parse_version_parts(version)?;
 
     // Handle >= specifier
-    if specifier.starts_with(">=") {
-        let spec_version = &specifier[2..].trim();
+    if let Some(stripped) = specifier.strip_prefix(">=") {
+        let spec_version = &stripped.trim();
         let spec_parts = parse_version_parts(spec_version)?;
         return Ok(version_parts >= spec_parts);
     }
 
     // Handle > specifier
-    if specifier.starts_with('>') {
-        let spec_version = &specifier[1..].trim();
+    if let Some(stripped) = specifier.strip_prefix('>') {
+        let spec_version = &stripped.trim();
         let spec_parts = parse_version_parts(spec_version)?;
         return Ok(version_parts > spec_parts);
     }
 
     // Handle <= specifier
-    if specifier.starts_with("<=") {
-        let spec_version = &specifier[2..].trim();
+    if let Some(stripped) = specifier.strip_prefix("<=") {
+        let spec_version = &stripped.trim();
         let spec_parts = parse_version_parts(spec_version)?;
         return Ok(version_parts <= spec_parts);
     }
 
     // Handle < specifier
-    if specifier.starts_with('<') {
-        let spec_version = &specifier[1..].trim();
+    if let Some(stripped) = specifier.strip_prefix('<') {
+        let spec_version = &stripped.trim();
         let spec_parts = parse_version_parts(spec_version)?;
         return Ok(version_parts < spec_parts);
     }
 
     // Handle == specifier
-    if specifier.starts_with("==") {
-        let spec_version = specifier[2..].trim();
+    if let Some(stripped) = specifier.strip_prefix("==") {
+        let spec_version = stripped.trim();
         return Ok(version == spec_version);
     }
 
     // Handle ~= compatible release (e.g., ~=2.2 matches >=2.2, <3.0)
-    if specifier.starts_with("~=") {
-        let spec_version = &specifier[2..].trim();
+    if let Some(stripped) = specifier.strip_prefix("~=") {
+        let spec_version = &stripped.trim();
         let spec_parts = parse_version_parts(spec_version)?;
         return Ok(version_parts.0 == spec_parts.0
             && (version_parts.1 > spec_parts.1

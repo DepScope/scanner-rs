@@ -144,13 +144,23 @@ fn main() -> io::Result<()> {
     // Discover files
     let mut exclude_dirs = vec![".nx", "target", ".git", "__pycache__"];
 
-    // Conditionally exclude installation directories
+    // Conditionally exclude installation directories from declared dependency scanning
+    // Note: We still want to find manifests/lockfiles in venvs, so we only exclude
+    // the actual package directories (node_modules, site-packages)
     if !args.include_install_dirs {
-        exclude_dirs.extend(vec!["node_modules", ".venv", "venv", "env"]);
+        exclude_dirs.extend(vec!["node_modules", "site-packages", "dist-packages"]);
     }
 
     let discovered_files = if scan_declared {
-        indexer::find_files(scan_path, &exclude_dirs)
+        // Determine scan mode enum
+        let mode = match args.scan_mode.as_str() {
+            "full" => indexer::ScanMode::Full,
+            "installed-only" => indexer::ScanMode::InstalledOnly,
+            "declared-only" => indexer::ScanMode::DeclaredOnly,
+            _ => indexer::ScanMode::Full,
+        };
+
+        indexer::find_files_with_mode(scan_path, &exclude_dirs, mode, args.include_install_dirs)
     } else {
         vec![]
     };

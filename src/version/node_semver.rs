@@ -57,15 +57,15 @@ pub fn satisfies(version: &str, range: &str) -> Result<bool, ScanError> {
     }
 
     // Handle >= ranges
-    if range.starts_with(">=") {
-        let range_version = &range[2..].trim();
+    if let Some(stripped) = range.strip_prefix(">=") {
+        let range_version = &stripped.trim();
         let range_parts = parse_version_parts(range_version)?;
         return Ok(version_parts >= range_parts);
     }
 
     // Handle > ranges
-    if range.starts_with('>') {
-        let range_version = &range[1..].trim();
+    if let Some(stripped) = range.strip_prefix('>') {
+        let range_version = &stripped.trim();
         let range_parts = parse_version_parts(range_version)?;
         return Ok(version_parts > range_parts);
     }

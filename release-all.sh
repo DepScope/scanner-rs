@@ -11,6 +11,7 @@ NC='\033[0m' # No Color
 # Default values
 VERSION_BUMP="patch"
 DRY_RUN=false
+REUPLOAD=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -31,9 +32,13 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --reupload)
+            REUPLOAD=true
+            shift
+            ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
-            echo "Usage: ./release-all.sh [--patch|--minor|--major] [--dry-run]"
+            echo "Usage: ./release-all.sh [--patch|--minor|--major] [--dry-run] [--reupload]"
             exit 1
             ;;
     esac
@@ -60,13 +65,17 @@ else
     READY=false
 fi
 
-# Check: Uncommitted changes
-if [ -z "$(git status --porcelain)" ]; then
-    echo -e "  ${GREEN}✓${NC} No uncommitted changes"
+# Check: Uncommitted changes (skip if reupload)
+if [ "$REUPLOAD" = false ]; then
+    if [ -z "$(git status --porcelain)" ]; then
+        echo -e "  ${GREEN}✓${NC} No uncommitted changes"
+    else
+        echo -e "  ${RED}✗${NC} You have uncommitted changes"
+        git status --short | sed 's/^/    /'
+        READY=false
+    fi
 else
-    echo -e "  ${RED}✗${NC} You have uncommitted changes"
-    git status --short | sed 's/^/    /'
-    READY=false
+    echo -e "  ${YELLOW}⚠${NC} Skipping uncommitted changes check (reupload mode)"
 fi
 
 # Check: GitHub CLI
@@ -132,27 +141,34 @@ if [ "$READY" = false ]; then
     exit 1
 fi
 
-# Calculate new version
-IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-case $VERSION_BUMP in
-    major)
-        MAJOR=$((MAJOR + 1))
-        MINOR=0
-        PATCH=0
-        ;;
-    minor)
-        MINOR=$((MINOR + 1))
-        PATCH=0
-        ;;
-    patch)
-        PATCH=$((PATCH + 1))
-        ;;
-esac
-NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+# Calculate new version or use current for reupload
+if [ "$REUPLOAD" = true ]; then
+    NEW_VERSION="$CURRENT_VERSION"
+    echo ""
+    echo -e "  ${YELLOW}Reupload mode:${NC} Using existing version ${GREEN}${NEW_VERSION}${NC}"
+    echo ""
+else
+    IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+    case $VERSION_BUMP in
+        major)
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            ;;
+        minor)
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            ;;
+        patch)
+            PATCH=$((PATCH + 1))
+            ;;
+    esac
+    NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
 
-echo ""
-echo -e "  ${BLUE}Version bump:${NC} ${YELLOW}${CURRENT_VERSION}${NC} → ${GREEN}${NEW_VERSION}${NC}"
-echo ""
+    echo ""
+    echo -e "  ${BLUE}Version bump:${NC} ${YELLOW}${CURRENT_VERSION}${NC} → ${GREEN}${NEW_VERSION}${NC}"
+    echo ""
+fi
 
 if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}DRY RUN - No changes will be made${NC}"
@@ -169,31 +185,47 @@ fi
 # ============================================================================
 # STEP 2: UPDATE VERSION
 # ============================================================================
-echo ""
-echo -e "${GREEN}[2/5] Updating Version${NC}"
-echo ""
+if [ "$REUPLOAD" = false ]; then
+    echo ""
+    echo -e "${GREEN}[2/5] Updating Version${NC}"
+    echo ""
 
-sed -i.bak "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
-rm Cargo.toml.bak
-echo -e "  ${GREEN}✓${NC} Updated Cargo.toml"
+    sed -i.bak "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
+    rm Cargo.toml.bak
+    echo -e "  ${GREEN}✓${NC} Updated Cargo.toml"
 
-cargo build --release > /dev/null 2>&1
-echo -e "  ${GREEN}✓${NC} Updated Cargo.lock"
+    cargo build --release > /dev/null 2>&1
+    echo -e "  ${GREEN}✓${NC} Updated Cargo.lock"
 
-git add Cargo.toml
-if [ -f Cargo.lock ]; then
-    git add -f Cargo.lock
+    git add Cargo.toml
+    if [ -f Cargo.lock ]; then
+        git add -f Cargo.lock
+    fi
+    git commit -m "chore(release): bump version to ${NEW_VERSION}"
+    echo -e "  ${GREEN}✓${NC} Committed version bump"
+
+    git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
+    echo -e "  ${GREEN}✓${NC} Created tag v${NEW_VERSION}"
+
+    CURRENT_BRANCH=$(git branch --show-current)
+    git push origin "$CURRENT_BRANCH"
+    git push origin "v${NEW_VERSION}"
+    echo -e "  ${GREEN}✓${NC} Pushed to remote"
+else
+    echo ""
+    echo -e "${GREEN}[2/5] Skipping Version Update (Reupload Mode)${NC}"
+    echo ""
+    echo -e "  ${YELLOW}⚠${NC} Using existing version ${NEW_VERSION}"
+    echo -e "  ${YELLOW}⚠${NC} Checking if tag exists..."
+
+    if git rev-parse "v${NEW_VERSION}" >/dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} Tag v${NEW_VERSION} exists"
+    else
+        echo -e "  ${RED}✗${NC} Tag v${NEW_VERSION} does not exist"
+        echo "Cannot reupload without existing tag. Run without --reupload to create a new release."
+        exit 1
+    fi
 fi
-git commit -m "chore: bump version to ${NEW_VERSION}"
-echo -e "  ${GREEN}✓${NC} Committed version bump"
-
-git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-echo -e "  ${GREEN}✓${NC} Created tag v${NEW_VERSION}"
-
-CURRENT_BRANCH=$(git branch --show-current)
-git push origin "$CURRENT_BRANCH"
-git push origin "v${NEW_VERSION}"
-echo -e "  ${GREEN}✓${NC} Pushed to remote"
 
 # ============================================================================
 # STEP 3: BUILD BINARIES
@@ -203,7 +235,17 @@ echo -e "${GREEN}[3/5] Building Binaries${NC}"
 echo ""
 
 RELEASE_DIR="target/release-artifacts"
+
+# Clean old artifacts
+if [ -d "$RELEASE_DIR" ]; then
+    echo -e "  ${YELLOW}→${NC} Cleaning old artifacts..."
+    rm -rf "$RELEASE_DIR"
+    echo -e "  ${GREEN}✓${NC} Removed old artifacts"
+fi
+
 mkdir -p "$RELEASE_DIR"
+echo -e "  ${GREEN}✓${NC} Created clean artifacts directory"
+echo ""
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -221,7 +263,9 @@ case $ARCH in
         ;;
 esac
 
-# Build native binary (already built during version update)
+# Build native binary
+echo -e "  ${BLUE}Building native binary...${NC}"
+cargo build --release > /dev/null 2>&1
 NATIVE_BINARY="scanner-${NEW_VERSION}-${OS}-${ARCH_NAME}"
 cp target/release/scanner "$RELEASE_DIR/${NATIVE_BINARY}"
 echo -e "  ${GREEN}✓${NC} Built ${YELLOW}${NATIVE_BINARY}${NC} (native)"
@@ -354,33 +398,67 @@ fi
 
 # Collect all binary paths
 BINARY_PATHS=()
+echo -e "  ${BLUE}Collecting binaries from $RELEASE_DIR...${NC}"
 for binary in "$RELEASE_DIR"/*; do
     if [ -f "$binary" ]; then
         BINARY_PATHS+=("$binary")
-        echo -e "  ${YELLOW}→${NC} Will upload: $(basename "$binary")"
+        SIZE=$(ls -lh "$binary" | awk '{print $5}')
+        echo -e "  ${YELLOW}→${NC} Will upload: $(basename "$binary") (${SIZE})"
     fi
 done
 
 if [ ${#BINARY_PATHS[@]} -eq 0 ]; then
     echo -e "${RED}✗ No binary files found in $RELEASE_DIR${NC}"
+    echo "Contents of $RELEASE_DIR:"
+    ls -la "$RELEASE_DIR" || echo "Directory does not exist"
     exit 1
 fi
 
+echo -e "  ${GREEN}✓${NC} Found ${#BINARY_PATHS[@]} binary/binaries to upload"
+
 echo ""
+
+if [ "$REUPLOAD" = true ]; then
+    echo -e "  ${BLUE}Checking if release exists...${NC}"
+
+    if gh release view "v${NEW_VERSION}" >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}→${NC} Release exists, deleting old assets..."
+
+        # Delete existing release to reupload
+        gh release delete "v${NEW_VERSION}" --yes >/dev/null 2>&1 || true
+        echo -e "  ${GREEN}✓${NC} Deleted old release"
+    fi
+fi
+
 echo -e "  ${BLUE}Creating GitHub release with ${#BINARY_PATHS[@]} binary/binaries...${NC}"
 
-echo "$RELEASE_NOTES" | gh release create "v${NEW_VERSION}" \
+# Create release with binaries
+if echo "$RELEASE_NOTES" | gh release create "v${NEW_VERSION}" \
     --title "v${NEW_VERSION}" \
     --notes-file - \
-    "${BINARY_PATHS[@]}" || {
-        echo -e "${RED}✗ Failed to create GitHub release${NC}"
-        echo "You may need to delete the tag and try again:"
-        echo "  git tag -d v${NEW_VERSION}"
-        echo "  git push origin :refs/tags/v${NEW_VERSION}"
-        exit 1
-    }
-
-echo -e "  ${GREEN}✓${NC} GitHub release created with ${#BINARY_PATHS[@]} binary/binaries"
+    "${BINARY_PATHS[@]}" 2>&1; then
+    echo -e "  ${GREEN}✓${NC} GitHub release created with ${#BINARY_PATHS[@]} binary/binaries"
+else
+    echo -e "${RED}✗ Failed to create GitHub release${NC}"
+    echo ""
+    echo "Troubleshooting:"
+    echo "  1. Check if binaries exist:"
+    for path in "${BINARY_PATHS[@]}"; do
+        if [ -f "$path" ]; then
+            echo -e "     ${GREEN}✓${NC} $path"
+        else
+            echo -e "     ${RED}✗${NC} $path (missing)"
+        fi
+    done
+    echo ""
+    echo "  2. Try uploading manually:"
+    echo "     gh release create v${NEW_VERSION} ${BINARY_PATHS[*]}"
+    echo ""
+    echo "  3. Or delete the tag and try again:"
+    echo "     git tag -d v${NEW_VERSION}"
+    echo "     git push origin :refs/tags/v${NEW_VERSION}"
+    exit 1
+fi
 
 # ============================================================================
 # DONE

@@ -56,15 +56,15 @@ pub fn satisfies(version: &str, requirement: &str) -> Result<bool, ScanError> {
     }
 
     // Handle >= requirements
-    if requirement.starts_with(">=") {
-        let req_version = &requirement[2..].trim();
+    if let Some(stripped) = requirement.strip_prefix(">=") {
+        let req_version = &stripped.trim();
         let req_parts = parse_version_parts(req_version)?;
         return Ok(version_parts >= req_parts);
     }
 
     // Handle > requirements
-    if requirement.starts_with('>') {
-        let req_version = &requirement[1..].trim();
+    if let Some(stripped) = requirement.strip_prefix('>') {
+        let req_version = &stripped.trim();
         let req_parts = parse_version_parts(req_version)?;
         return Ok(version_parts > req_parts);
     }

@@ -67,13 +67,13 @@ pub fn parse_metadata(content: &str, file_path: &Path) -> Result<PythonMetadata,
     for line in content.lines() {
         let line = line.trim();
 
-        if line.starts_with("Name:") {
-            name = Some(line[5..].trim().to_string());
-        } else if line.starts_with("Version:") {
-            version = Some(line[8..].trim().to_string());
-        } else if line.starts_with("Requires-Dist:") {
+        if let Some(stripped) = line.strip_prefix("Name:") {
+            name = Some(stripped.trim().to_string());
+        } else if let Some(stripped) = line.strip_prefix("Version:") {
+            version = Some(stripped.trim().to_string());
+        } else if let Some(stripped) = line.strip_prefix("Requires-Dist:") {
             // Parse dependency specification
-            let dep_spec = line[14..].trim();
+            let dep_spec = stripped.trim();
             if let Some((dep_name, dep_version)) = parse_requires_dist(dep_spec) {
                 dependencies.push((dep_name, dep_version));
             }
@@ -113,19 +113,19 @@ pub fn parse_pkg_info(content: &str, file_path: &Path) -> Result<PythonMetadata,
     for line in content.lines() {
         let line = line.trim();
 
-        if line.starts_with("Name:") {
-            name = Some(line[5..].trim().to_string());
-        } else if line.starts_with("Version:") {
-            version = Some(line[8..].trim().to_string());
-        } else if line.starts_with("Requires:") {
+        if let Some(stripped) = line.strip_prefix("Name:") {
+            name = Some(stripped.trim().to_string());
+        } else if let Some(stripped) = line.strip_prefix("Version:") {
+            version = Some(stripped.trim().to_string());
+        } else if let Some(stripped) = line.strip_prefix("Requires:") {
             // Simple dependency name (older format)
-            let dep_name = line[9..].trim().to_string();
+            let dep_name = stripped.trim().to_string();
             if !dep_name.is_empty() {
                 dependencies.push((dep_name, "*".to_string()));
             }
-        } else if line.starts_with("Requires-Dist:") {
+        } else if let Some(stripped) = line.strip_prefix("Requires-Dist:") {
             // Modern format
-            let dep_spec = line[14..].trim();
+            let dep_spec = stripped.trim();
             if let Some((dep_name, dep_version)) = parse_requires_dist(dep_spec) {
                 dependencies.push((dep_name, dep_version));
             }
