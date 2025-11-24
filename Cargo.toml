@@ -2,7 +2,7 @@
 name = "scanner"
 version = "0.2.1"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Jacob Verhoeks <jacdob@verhoeks.org>"]
 description = "A tool to scan directories for npm package compatibility"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/yourusername/scanner"
