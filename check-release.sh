@@ -60,6 +60,17 @@ else
     READY=false
 fi
 
+# Check 5b: Cargo.lock status
+if [ -f Cargo.lock ]; then
+    if git ls-files --error-unmatch Cargo.lock &>/dev/null; then
+        echo -e "${GREEN}✓${NC} Cargo.lock is tracked"
+    else
+        echo -e "${YELLOW}⚠${NC} Cargo.lock exists but is not tracked (will be force-added)"
+    fi
+else
+    echo -e "${YELLOW}⚠${NC} Cargo.lock not found (will be generated)"
+fi
+
 # Check 6: Remote repository
 if git remote get-url origin &> /dev/null; then
     REMOTE=$(git remote get-url origin)
