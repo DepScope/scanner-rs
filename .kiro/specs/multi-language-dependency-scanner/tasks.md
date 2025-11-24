@@ -1,0 +1,221 @@
+# Implementation Plan
+
+- [x] 1. Set up project structure and core module organization
+  - Create new directory structure: `src/indexer/`, `src/parsers/`, `src/models/`, `src/version/`, `src/output/`
+  - Create `src/lib.rs` to expose public library interface
+  - Add module declarations and basic exports
+  - _Requirements: 10.1, 10.2_
+
+- [x] 2. Implement core data models
+  - [x] 2.1 Create `src/models/dependency.rs` with `DependencyRecord`, `DependencyType`, `Ecosystem`, `FileType` enums
+    - Define `DependencyRecord` struct with all required fields
+    - Implement `Debug`, `Clone`, and `Serialize` derives
+    - _Requirements: 8.1, 8.2, 8.3, 8.4_
+  - [x] 2.2 Create `src/models/scan_result.rs` for result aggregation
+    - Define `ScanResult` struct to hold collections of dependency records
+    - Implement methods for adding and querying results
+    - _Requirements: 8.1, 8.2, 8.3, 8.4_
+
+- [x] 3. Implement parser trait and registry
+  - [x] 3.1 Create `src/parsers/mod.rs` with `Parser` trait definition
+    - Define `Parser` trait with `parse()`, `ecosystem()`, and `file_type()` methods
+    - Define `ParseError` enum using `thiserror`
+    - _Requirements: 10.2, 10.3_
+  - [x] 3.2 Create `src/parsers/registry.rs` with `ParserRegistry`
+    - Implement registry pattern with `HashMap<String, Box<dyn Parser>>`
+    - Add `register()` and `get_parser()` methods
+    - _Requirements: 10.3_
+
+- [x] 4. Implement Node.js manifest parser (package.json)
+  - [x] 4.1 Create `src/parsers/manifest/package_json.rs`
+    - Define serde structs for package.json structure
+    - Implement `Parser` trait for `PackageJsonParser`
+    - Extract dependencies, devDependencies, peerDependencies, optionalDependencies
+    - Map each section to appropriate `DependencyType`
+    - _Requirements: 3.1, 4.1, 4.2_
+  - [x] 4.2 Create `tests/parsers/package_json_tests.rs` with unit tests
+    - Test parsing valid package.json with multiple dependency types
+    - Test handling of malformed JSON
+    - Test empty dependencies sections
+    - Create test fixture file in `tests/fixtures/node/package.json`
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+
+- [x] 5. Implement Node.js lockfile parsers
+  - [x] 5.1 Create `src/parsers/lockfile/yarn_lock.rs`
+    - Add `yarn-lock-parser` crate dependency
+    - Implement `Parser` trait for `YarnLockParser`
+    - Extract resolved versions from yarn.lock entries
+    - _Requirements: 3.5, 5.1_
+  - [x] 5.2 Create `src/parsers/lockfile/package_lock_json.rs`
+    - Define serde structs for package-lock.json v1/v2/v3 formats
+    - Implement `Parser` trait for `PackageLockJsonParser`
+    - Handle both `dependencies` and `packages` sections
+    - _Requirements: 3.6, 5.2_
+  - [x] 5.3 Create `src/parsers/lockfile/pnpm_lock_yaml.rs`
+    - Add `serde_yaml` crate dependency
+    - Define structs for pnpm-lock.yaml structure
+    - Implement `Parser` trait for `PnpmLockParser`
+    - Parse package keys like `/package/1.2.3`
+    - _Requirements: 3.7, 5.3_
+  - [x] 5.4 Create unit tests for Node.js lockfile parsers
+    - Test yarn.lock parsing with multiple packages
+    - Test package-lock.json v2 and v3 formats
+    - Test pnpm-lock.yaml parsing
+    - Create test fixtures for each format
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+
+- [x] 6. Implement Python manifest parsers
+  - [x] 6.1 Create `src/parsers/manifest/pyproject_toml.rs`
+    - Add `pyproject-toml` crate dependency
+    - Implement `Parser` trait for `PyprojectTomlParser`
+    - Extract from `dependencies`, `tool.poetry.dependencies`, `tool.poetry.dev-dependencies`
+    - _Requirements: 3.2, 4.3, 4.4_
+  - [x] 6.2 Create `src/parsers/manifest/requirements_txt.rs`
+    - Add `requirements` crate or implement custom line parser
+    - Implement `Parser` trait for `RequirementsTxtParser`
+    - Parse package names and version specifiers
+    - Handle comments and blank lines
+    - _Requirements: 3.3, 4.5_
+  - [x] 6.3 Create unit tests for Python manifest parsers
+    - Test pyproject.toml with Poetry dependencies
+    - Test requirements.txt with various version specifiers
+    - Test handling of extras and URLs in requirements.txt
+    - Create test fixtures
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+
+- [x] 7. Implement Python lockfile parsers
+  - [x] 7.1 Create `src/parsers/lockfile/poetry_lock.rs`
+    - Add `toml` crate dependency
+    - Define structs for poetry.lock structure
+    - Implement `Parser` trait for `PoetryLockParser`
+    - Extract versions from `[[package]]` sections
+    - _Requirements: 3.8, 5.4_
+  - [x] 7.2 Create `src/parsers/lockfile/uv_lock.rs`
+    - Use `toml` crate with custom structs
+    - Implement `Parser` trait for `UvLockParser`
+    - Parse uv.lock TOML format
+    - _Requirements: 3.9, 5.5_
+  - [x] 7.3 Create unit tests for Python lockfile parsers
+    - Test poetry.lock parsing with multiple packages
+    - Test uv.lock parsing
+    - Create test fixtures
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+
+- [x] 8. Implement Rust parsers
+  - [x] 8.1 Create `src/parsers/manifest/cargo_toml.rs`
+    - Add `cargo_toml` crate dependency
+    - Implement `Parser` trait for `CargoTomlParser`
+    - Extract dependencies, dev-dependencies, build-dependencies
+    - _Requirements: 3.4, 4.6_
+  - [x] 8.2 Create `src/parsers/lockfile/cargo_lock.rs`
+    - Add `cargo_lock` crate dependency
+    - Implement `Parser` trait for `CargoLockParser`
+    - Extract exact resolved versions
+    - _Requirements: 3.10, 5.6_
+  - [x] 8.3 Create unit tests for Rust parsers
+    - Test Cargo.toml parsing with different dependency types
+    - Test Cargo.lock parsing
+    - Create test fixtures
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+
+- [x] 9. Implement filesystem indexer
+  - [x] 9.1 Create `src/indexer/file_types.rs` with file identification logic
+    - Define `DiscoveredFile` struct
+    - Implement functions to classify files by name (package.json, Cargo.toml, etc.)
+    - Map filenames to ecosystems and file types
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
+  - [x] 9.2 Create `src/indexer/mod.rs` with directory traversal
+    - Implement `find_files()` function using `walkdir`
+    - Add exclusion logic for node_modules, target, .nx directories
+    - Return `Vec<DiscoveredFile>`
+    - _Requirements: 1.5, 1.6, 1.7, 9.1_
+  - [x] 9.3 Add parallel file discovery
+    - Use `rayon::par_iter()` for parallel directory traversal
+    - Collect results in thread-safe manner
+    - _Requirements: 9.1, 9.2_
+
+- [x] 10. Implement version handling modules
+  - [x] 10.1 Create `src/version/node_semver.rs`
+    - Add `node-semver` crate dependency
+    - Implement version parsing and comparison for Node.js packages
+    - Wrap `node-semver` API with ergonomic interface
+    - _Requirements: 7.1_
+  - [x] 10.2 Create `src/version/rust_semver.rs`
+    - Add `semver` crate dependency
+    - Implement version parsing and comparison for Rust packages
+    - _Requirements: 7.2_
+  - [x] 10.3 Create `src/version/python_pep440.rs`
+    - Add `pep440_rs` crate or implement custom parser
+    - Implement PEP 440 compliant version parsing
+    - _Requirements: 7.3_
+
+- [x] 11. Update main.rs to use new architecture
+  - [x] 11.1 Refactor CLI argument parsing
+    - Keep existing flags (--dir, --jobs, --verbose, --root-only, --list-dirs)
+    - Remove npm-specific flags (--no-npm)
+    - Add ecosystem filter flag (--ecosystems)
+    - _Requirements: 9.3_
+  - [x] 11.2 Implement main scan orchestration
+    - Initialize `ParserRegistry` with all parsers
+    - Call indexer to discover files
+    - Parallel parse discovered files using appropriate parsers
+    - Collect results into `ScanResult`
+    - _Requirements: 9.1, 9.2, 9.4, 10.4_
+  - [x] 11.3 Remove legacy code
+    - Remove `Preload` struct and preloading logic
+    - Remove individual `get_*_versions()` functions
+    - Remove `packages.txt` input logic (for now, focus on full scan)
+    - Clean up unused imports
+
+- [x] 12. Implement enhanced CSV output
+  - [x] 12.1 Create `src/output/csv_writer.rs`
+    - Define CSV schema: package, version, source_file, dep_type, ecosystem, file_type
+    - Implement function to write `Vec<DependencyRecord>` to CSV
+    - Use `csv` crate for writing
+    - _Requirements: 8.1, 8.2, 8.3, 8.4_
+  - [x] 12.2 Update main.rs to use new CSV writer
+    - Replace existing CSV writing code
+    - Write all discovered dependencies to output.csv
+    - Sort results by ecosystem, package name, source file
+
+- [x] 13. Add comprehensive error handling
+  - [x] 13.1 Define error types in `src/models/error.rs`
+    - Create `ScanError` enum with variants for IO, Parse, UnsupportedFormat, VersionParse
+    - Use `thiserror` for error derivation
+    - _Requirements: 10.5_
+  - [x] 13.2 Update all parsers to return `Result<Vec<DependencyRecord>, ScanError>`
+    - Add proper error context with file paths
+    - Implement error recovery (log and continue)
+  - [x] 13.3 Add error handling in main scan loop
+    - Log parse errors but continue scanning
+    - Only fail on fatal errors (CLI args, output write)
+
+- [x] 14. Update Cargo.toml with all new dependencies
+  - Add all required crates: `serde`, `thiserror`, `anyhow`, `node-semver`, `yarn-lock-parser`, `pyproject-toml`, `pep440_rs`, `toml`, `cargo_toml`, `cargo_lock`, `serde_yaml`
+  - Verify version compatibility
+  - Run `cargo build` to ensure all dependencies resolve
+  - _Requirements: 7.1, 7.2, 7.3_
+
+- [x] 15. Create integration tests
+  - [x] 15.1 Create `tests/integration/end_to_end.rs`
+    - Set up temporary directory with test fixtures
+    - Run full scan
+    - Verify all expected dependencies are found
+    - Verify CSV output format
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [x] 15.2 Create comprehensive test fixtures
+    - Add realistic package.json, yarn.lock, package-lock.json
+    - Add pyproject.toml, poetry.lock, requirements.txt
+    - Add Cargo.toml, Cargo.lock
+    - Organize in `tests/fixtures/` by ecosystem
+
+- [x] 16. Update documentation
+  - [x] 16.1 Update README.md
+    - Document new multi-language support
+    - Update usage examples
+    - Add examples for each ecosystem
+    - Document new CLI flags
+  - [x] 16.2 Add rustdoc comments to public APIs
+    - Document all public structs, traits, and functions
+    - Add usage examples in doc comments
+    - Document error conditions

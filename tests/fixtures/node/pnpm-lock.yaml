@@ -1,0 +1,25 @@
+lockfileVersion: '6.0'
+
+dependencies:
+  react:
+    specifier: ^18.2.0
+    version: 18.2.0
+  lodash:
+    specifier: ^4.17.21
+    version: 4.17.21
+
+packages:
+
+  /lodash/4.17.21:
+    resolution: {integrity: sha512-xyz789...}
+    dev: false
+
+  /react/18.2.0:
+    resolution: {integrity: sha512-abc123...}
+    dependencies:
+      loose-envify: 1.4.0
+    dev: false
+
+  /loose-envify/1.4.0:
+    resolution: {integrity: sha512-def456...}
+    dev: false

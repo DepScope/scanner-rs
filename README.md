@@ -1,128 +1,186 @@
 # Scanner
 
-A high-performance CLI tool for analyzing npm package compatibility across JavaScript/TypeScript projects.
-
-## Description
-
-Scanner recursively scans directories to identify npm packages and verify their presence across different package manager lock files (yarn.lock, package-lock.json, pnpm-lock.yaml) and dependency manifests. Perfect for auditing monorepos, ensuring version consistency, and generating compatibility reports.
+A high-performance multi-language dependency scanner for Python, Node.js, and Rust ecosystems. Scanner recursively traverses directories to identify package management files, parse dependencies, and generate comprehensive reports.
 
 ## Features
 
-- **Multi-package manager support**: yarn, npm, pnpm
-- **Parallel processing**: Configurable thread pool for fast scanning
-- **Smart exclusions**: Automatically skips node_modules and .nx directories
-- **Flexible scanning**: Scan from any directory with custom start paths
-- **CSV export**: Detailed reports for analysis and auditing
-- **Real paths**: Outputs absolute paths for unambiguous results
+- **Multi-Ecosystem Support**: Scans Python, Node.js/TypeScript, and Rust projects
+- **Comprehensive File Format Coverage**:
+  - **Node.js**: package.json, yarn.lock, package-lock.json, pnpm-lock.yaml
+  - **Python**: pyproject.toml, requirements.txt, poetry.lock, uv.lock
+  - **Rust**: Cargo.toml, Cargo.lock
+- **Parallel Processing**: Fast scanning with configurable thread pools
+- **Detailed Reporting**: CSV output with dependency type, ecosystem, and source file information
+- **Flexible Filtering**: Filter results by ecosystem
 
 ## Installation
 
-### From Source
-
 ```bash
-git clone <repository-url>
-cd scanner
 cargo build --release
 ```
 
 The binary will be available at `target/release/scanner`.
 
-### From GitHub Releases
-
-Download pre-built binaries for your platform from the [Releases](../../releases) page:
-- Linux x86_64
-- Linux ARM64
-- macOS x86_64
-- macOS ARM64 (Apple Silicon)
-
 ## Usage
 
-### Quick Start
+### Basic Scan
 
-1. Create a `packages.txt` file with packages to check (format: `name@version`):
-
-```
-lodash@4.17.21
-react@18.2.0
-express@4.18.2
-```
-
-2. Run the scanner:
+Scan the current directory for all dependencies:
 
 ```bash
 scanner
 ```
 
-### Command Line Options
+### Scan Specific Directory
 
-```
--d, --dir <DIR>        Directory to start scanning from [default: .]
-    --root-only        Only check the root directory
-    --list-dirs        Only list directories to be checked
--j, --jobs <JOBS>      Number of worker threads [default: CPU count]
-    --no-npm           Skip calling npm (faster, recommended)
--v, --verbose          Enable verbose logging
--h, --help             Print help
--V, --version          Print version
-```
-
-### Examples
-
-Scan current directory with verbose output:
 ```bash
-scanner --verbose --no-npm
+scanner --dir /path/to/project
 ```
 
-Scan a specific directory with 8 threads:
+### Filter by Ecosystem
+
+Scan only Node.js dependencies:
+
 ```bash
-scanner --dir /path/to/project --jobs 8
+scanner --ecosystem node
 ```
 
-List directories that would be scanned:
+Scan only Python dependencies:
+
 ```bash
-scanner --list-dirs
+scanner --ecosystem python
 ```
 
-Scan only the root directory:
+Scan only Rust dependencies:
+
 ```bash
-scanner --root-only --no-npm
+scanner --ecosystem rust
+```
+
+### Configure Thread Count
+
+```bash
+scanner --jobs 8
+```
+
+### Verbose Output
+
+```bash
+scanner --verbose
 ```
 
 ## Output
 
-### Console Output
-Displays found packages with matching versions:
+Scanner generates an `output.csv` file with the following columns:
+
+- **package**: Package name
+- **version**: Version specification (range for manifests, exact for lockfiles)
+- **source_file**: Path to the file where the dependency was found
+- **dep_type**: Dependency type (runtime, development, peer, optional, build)
+- **ecosystem**: Package ecosystem (node, python, rust)
+- **file_type**: Whether from manifest or lockfile
+
+### Example Output
+
+```csv
+package,version,source_file,dep_type,ecosystem,file_type
+react,^18.2.0,/project/package.json,runtime,node,manifest
+react,18.2.0,/project/yarn.lock,runtime,node,lockfile
+django,^4.2.0,/project/pyproject.toml,runtime,python,manifest
+django,4.2.3,/project/poetry.lock,runtime,python,lockfile
+serde,1.0,/project/Cargo.toml,runtime,rust,manifest
+serde,1.0.188,/project/Cargo.lock,runtime,rust,lockfile
 ```
-/path/to/project:lodash@4.17.21
-/path/to/project/packages/app:react@18.2.0
+
+## Supported File Formats
+
+### Node.js Ecosystem
+
+**Manifest Files** (declared dependencies):
+- `package.json` - npm/yarn/pnpm package manifest
+
+**Lockfiles** (resolved versions):
+- `yarn.lock` - Yarn v1/v2 lockfile
+- `package-lock.json` - npm lockfile (v1/v2/v3)
+- `pnpm-lock.yaml` - pnpm lockfile
+
+### Python Ecosystem
+
+**Manifest Files**:
+- `pyproject.toml` - PEP 621 and Poetry project files
+- `requirements.txt` - pip requirements
+
+**Lockfiles**:
+- `poetry.lock` - Poetry lockfile
+- `uv.lock` - uv lockfile
+
+### Rust Ecosystem
+
+**Manifest Files**:
+- `Cargo.toml` - Cargo package manifest
+
+**Lockfiles**:
+- `Cargo.lock` - Cargo lockfile
+
+## Excluded Directories
+
+Scanner automatically excludes the following directories from traversal:
+- `node_modules`
+- `.nx`
+- `target`
+- `.git`
+- `.venv`
+- `venv`
+- `__pycache__`
+
+## Architecture
+
+Scanner uses a modular parser-based architecture:
+
+- **Indexer**: Fast parallel filesystem traversal
+- **Parser Registry**: Extensible parser system for different file formats
+- **Parsers**: Dedicated parsers for each file format
+- **Models**: Structured data representation
+- **Output**: CSV generation
+
+## Development
+
+### Run Tests
+
+```bash
+cargo test
 ```
 
-### CSV Report
-Generated as `output.csv` with columns:
-- `package`: Package name
-- `version`: Version being checked
-- `location`: Absolute path to directory
-- `match_package`: Whether package was found (true/false)
-- `match_version`: Whether version matches (true/false)
+### Build Documentation
 
-## How It Works
+```bash
+cargo doc --open
+```
 
-1. **Discovery**: Recursively finds directories containing package.json, lock files, or DEPENDENCIES.json
-2. **Preloading**: Reads all lock files once before parallel processing
-3. **Parallel Scanning**: Uses rayon to scan packages across directories concurrently
-4. **Version Extraction**: Parses lock files using format-specific strategies:
-   - yarn.lock: Regex-based parsing
-   - package-lock.json: JSON parsing
-   - pnpm-lock.yaml: Regex-based parsing
-   - DEPENDENCIES.json: JSON parsing
-   - npm ls: Shell command (optional)
-5. **Reporting**: Generates CSV with match results
+### Run with Debug Output
 
-## Requirements
+```bash
+cargo run -- --verbose
+```
 
-- Rust 2021 edition or later
-- No runtime dependencies (statically linked binary)
+## Performance
+
+Scanner uses Rayon for parallel processing, automatically detecting the optimal number of threads based on your CPU. For large monorepos, you can adjust the thread count:
+
+```bash
+scanner --jobs 16
+```
 
 ## License
 
 MIT OR Apache-2.0
+
+## Contributing
+
+Contributions are welcome! Please ensure all tests pass before submitting a pull request:
+
+```bash
+cargo test
+cargo fmt
+cargo clippy
+```
