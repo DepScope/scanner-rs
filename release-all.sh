@@ -235,7 +235,17 @@ echo -e "${GREEN}[3/5] Building Binaries${NC}"
 echo ""
 
 RELEASE_DIR="target/release-artifacts"
+
+# Clean old artifacts
+if [ -d "$RELEASE_DIR" ]; then
+    echo -e "  ${YELLOW}→${NC} Cleaning old artifacts..."
+    rm -rf "$RELEASE_DIR"
+    echo -e "  ${GREEN}✓${NC} Removed old artifacts"
+fi
+
 mkdir -p "$RELEASE_DIR"
+echo -e "  ${GREEN}✓${NC} Created clean artifacts directory"
+echo ""
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -253,7 +263,9 @@ case $ARCH in
         ;;
 esac
 
-# Build native binary (already built during version update)
+# Build native binary
+echo -e "  ${BLUE}Building native binary...${NC}"
+cargo build --release > /dev/null 2>&1
 NATIVE_BINARY="scanner-${NEW_VERSION}-${OS}-${ARCH_NAME}"
 cp target/release/scanner "$RELEASE_DIR/${NATIVE_BINARY}"
 echo -e "  ${GREEN}✓${NC} Built ${YELLOW}${NATIVE_BINARY}${NC} (native)"
