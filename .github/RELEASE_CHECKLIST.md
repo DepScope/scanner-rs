@@ -11,27 +11,19 @@ Use this checklist when creating a new release.
 - [ ] Documentation updated (README, CHANGELOG, etc.)
 - [ ] On main/master branch (or intended release branch)
 
-## Release Readiness Check
-
-```bash
-./check-release.sh
-```
-
-Expected output: All green checkmarks ✓
-
 ## Create Release
 
 Choose version bump type:
 
 ```bash
 # Patch release (bug fixes): 0.1.0 → 0.1.1
-./release.sh --patch
+./release-all.sh --patch
 
 # Minor release (new features): 0.1.0 → 0.2.0
-./release.sh --minor
+./release-all.sh --minor
 
 # Major release (breaking changes): 0.1.0 → 1.0.0
-./release.sh --major
+./release-all.sh --major
 ```
 
 Or use make:
@@ -41,6 +33,8 @@ make release-patch
 make release-minor
 make release-major
 ```
+
+The script will automatically run pre-flight checks before proceeding.
 
 ## Post-Release
 
@@ -52,7 +46,7 @@ make release-major
 
 ## If Something Goes Wrong
 
-See [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md) for common issues and solutions.
+See [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md) or [RELEASING.md](../../RELEASING.md) for common issues and solutions.
 
 Quick rollback:
 ```bash
