@@ -17,17 +17,21 @@ make release-major
 
 # Test without making changes
 ./release-all.sh --patch --dry-run
+```bash
+
 ```
 
 ## Prerequisites
 
 1. **GitHub CLI** - Install and authenticate:
+
    ```bash
    brew install gh
    gh auth login
    ```
 
 2. **Clean working directory** - Commit all changes:
+
    ```bash
    git status
    ```
@@ -35,6 +39,7 @@ make release-major
 3. **Rust toolchain** - Already installed ✓
 
 4. **Cross-compilation (Optional)** - For multiple binaries:
+
    ```bash
    rustup default stable
    rustup target add x86_64-apple-darwin aarch64-apple-darwin
@@ -43,6 +48,7 @@ make release-major
 ## What the Script Does
 
 ### [1/5] Pre-flight Checks
+
 - ✓ Git repository exists
 - ✓ No uncommitted changes
 - ✓ GitHub CLI installed and authenticated
@@ -51,6 +57,7 @@ make release-major
 - ✓ Checks rustup for cross-compilation capability
 
 ### [2/5] Update Version
+
 - Updates version in `Cargo.toml`
 - Updates `Cargo.lock`
 - Commits changes with message: `chore: bump version to X.Y.Z`
@@ -58,20 +65,25 @@ make release-major
 - Pushes to remote
 
 ### [3/5] Build Binaries
+
 **Without rustup configured:**
+
 - Builds 1 binary for your native architecture
 
 **With rustup configured:**
+
 - Builds native binary
 - Cross-compiles for other architectures:
   - macOS: x86_64 (Intel) + aarch64 (Apple Silicon)
   - Linux: x86_64 + aarch64 (requires `cross` tool)
 
 ### [4/5] Build Summary
+
 - Lists all created binaries
 - Shows file sizes and architectures
 
 ### [5/5] Create GitHub Release
+
 - Creates GitHub release with tag
 - Uploads all binaries
 - Generates installation instructions
@@ -90,7 +102,9 @@ Binaries are created in `target/release-artifacts/`:
 ## Cross-Compilation Setup
 
 ### Current Setup
+
 You have rustup installed but not configured. This means:
+
 - ✅ Can create releases
 - ⚠️ Only 1 binary per release (native architecture)
 
@@ -112,22 +126,26 @@ rustup target list --installed
 
 # 4. Test
 ./release-all.sh --patch --dry-run
+```bash
+
 ```
 
 ### Why Cross-Compile?
 
 **Without cross-compilation:**
+
 - 1 binary per release
 - Users on other architectures must build from source
 
 **With cross-compilation:**
+
 - 2-3 binaries per release
 - Users can download pre-built binaries for their platform
 - Better user experience
 
 ## Example Output
 
-```
+```bash
 ╔════════════════════════════════════════╗
 ║   Scanner Multi-Platform Release      ║
 ╚════════════════════════════════════════╝
@@ -155,7 +173,7 @@ Continue with release? (y/N) y
 
 [3/5] Building Binaries
   ✓ Built scanner-0.1.3-darwin-aarch64 (native)
-  
+
   Cross-compiling for macOS...
   → Building for x86_64-apple-darwin...
   ✓ Built scanner-0.1.3-darwin-x86_64
@@ -182,33 +200,47 @@ Continue with release? (y/N) y
 ## Troubleshooting
 
 ### "You have uncommitted changes"
+
 ```bash
 git status
 git add .
 git commit -m "your message"
+```bash
+
 ```
 
 ### "GitHub CLI not authenticated"
+
 ```bash
 gh auth login
+```bash
+
 ```
 
 ### "rustup found but no active toolchain"
+
 ```bash
 rustup default stable
+```bash
+
 ```
 
 ### "Cannot access GitHub repository"
+
 ```bash
 # Check remote
 git remote -v
 
 # Verify gh can access it
 gh repo view
+```bash
+
 ```
 
 ### Release failed
+
 Delete the tag and try again:
+
 ```bash
 # Delete release
 gh release delete vX.Y.Z --yes
@@ -221,18 +253,24 @@ git push origin :refs/tags/vX.Y.Z
 
 # Try again
 ./release-all.sh --patch
+```bash
+
 ```
 
 ### Cross-compilation fails
+
 This is usually fine - the script will continue with native binary only.
 
 To fix:
+
 ```bash
 # Make sure targets are installed
 rustup target add x86_64-apple-darwin aarch64-apple-darwin
 
 # Check Xcode Command Line Tools (macOS)
 xcode-select --install
+```bash
+
 ```
 
 ## Version Strategy
@@ -274,6 +312,8 @@ gh release create v0.1.1 \
   --title "v0.1.1" \
   --notes "Release v0.1.1" \
   target/release-artifacts/*
+```bash
+
 ```
 
 ## Files
@@ -290,17 +330,20 @@ gh release create v0.1.1 \
 ## Next Steps
 
 1. **Try a dry run:**
+
    ```bash
    ./release-all.sh --patch --dry-run
    ```
 
 2. **Enable cross-compilation (optional):**
+
    ```bash
    rustup default stable
    rustup target add x86_64-apple-darwin aarch64-apple-darwin
    ```
 
 3. **Create your first release:**
+
    ```bash
    ./release-all.sh --patch
    ```

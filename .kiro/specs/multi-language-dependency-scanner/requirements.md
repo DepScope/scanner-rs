@@ -2,7 +2,9 @@
 
 ## Introduction
 
-This document specifies requirements for transforming the existing npm-focused scanner into a comprehensive multi-language dependency scanner. The system will identify, parse, and analyze package dependencies across Python, Node.js/TypeScript, Rust, and future ecosystems (Java). It will distinguish between declared dependencies (in project manifests) and resolved/installed versions (in lock files), providing a complete view of dependency usage across a filesystem.
+This document specifies requirements for transforming the existing npm-focused scanner into a comprehensive multi-language dependency scanner.
+The system will identify, parse, and analyze package dependencies across Python, Node.js/TypeScript, Rust, and future ecosystems (Java).
+It will distinguish between declared dependencies (in project manifests) and resolved/installed versions (in lock files), providing a complete view of dependency usage across a filesystem.
 
 ## Glossary
 

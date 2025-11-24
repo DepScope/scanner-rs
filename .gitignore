@@ -23,3 +23,11 @@ output.csv
 
 # Logs
 *.log
+
+# Pre-commit
+.pre-commit-cache/
+*.backup
+
+# Coverage reports
+cobertura.xml
+tarpaulin-report.html

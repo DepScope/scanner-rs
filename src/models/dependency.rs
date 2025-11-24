@@ -1,26 +1,26 @@
 //! Core dependency data structures
 
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 /// A dependency record representing a package dependency
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DependencyRecord {
     /// Package name
     pub name: String,
-    
+
     /// Version specification (range for manifests, exact for lockfiles)
     pub version: String,
-    
+
     /// Source file path
     pub source_file: PathBuf,
-    
+
     /// Dependency type (dependencies, devDependencies, build-dependencies, etc.)
     pub dep_type: DependencyType,
-    
+
     /// Ecosystem
     pub ecosystem: Ecosystem,
-    
+
     /// Whether this is from a manifest or lockfile
     pub file_type: FileType,
 }

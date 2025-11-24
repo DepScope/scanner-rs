@@ -40,7 +40,9 @@
   - `bun.lockb`: External conversion to text format.
 
 ### Other Common Formats You Might Have Forgotten
+
 Based on ecosystem scans, here are notable omissions from your list (focusing on Python/Node/Rust; excluding niche like R's `DESCRIPTION` or Go's `go.mod`):
+
 - **Python**: `Pipfile` / `Pipfile.lock` (Pipenv)—parse with `toml` crate (TOML format).
 - **Python**: `environment.yml` (Conda)—YAML; use `serde_yaml`.
 - **Node**: `npm-shrinkwrap.json` (legacy npm)—JSON; `serde_json`.

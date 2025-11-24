@@ -6,12 +6,15 @@
 
 **Problem**: Git refuses to add `Cargo.lock` because it's in `.gitignore`.
 
-**Solution**: 
+**Solution**:
+
 ```bash
 # Remove Cargo.lock from .gitignore (already done in latest version)
 # Or force add it once
 git add -f Cargo.lock
 git commit -m "chore: track Cargo.lock for binary project"
+```bash
+
 ```
 
 **Why**: Binary projects (CLI tools) should commit `Cargo.lock` to ensure reproducible builds. Library projects typically ignore it.
@@ -23,9 +26,12 @@ git commit -m "chore: track Cargo.lock for binary project"
 **Problem**: `gh auth status` fails.
 
 **Solution**:
+
 ```bash
 gh auth login
 # Follow the prompts to authenticate
+```bash
+
 ```
 
 ---
@@ -35,6 +41,7 @@ gh auth login
 **Problem**: No remote repository or wrong permissions.
 
 **Solution**:
+
 ```bash
 # Check remote
 git remote -v
@@ -44,6 +51,8 @@ git remote add origin git@github.com:USERNAME/REPO.git
 
 # Verify gh can access it
 gh repo view
+```bash
+
 ```
 
 ---
@@ -53,6 +62,7 @@ gh repo view
 **Problem**: Working directory is not clean.
 
 **Solution**:
+
 ```bash
 # See what's changed
 git status
@@ -63,6 +73,8 @@ git commit -m "your message"
 
 # Or stash them
 git stash
+```bash
+
 ```
 
 ---
@@ -72,11 +84,14 @@ git stash
 **Problem**: Release script expects main/master branch.
 
 **Solution**:
+
 ```bash
 # Switch to main
 git checkout main
 
 # Or modify release.sh to use current branch (already done in latest version)
+```bash
+
 ```
 
 ---
@@ -86,6 +101,7 @@ git checkout main
 **Problem**: Tag or release already exists on GitHub.
 
 **Solution**:
+
 ```bash
 # Delete the release
 gh release delete v0.1.0 --yes
@@ -98,6 +114,8 @@ git push origin :refs/tags/v0.1.0
 
 # Try again
 ./release.sh --patch
+```bash
+
 ```
 
 ---
@@ -109,12 +127,15 @@ git push origin :refs/tags/v0.1.0
 **Solution**: This is expected and non-fatal. The script will continue with native binary only. GitHub Actions will build other architectures.
 
 To enable local cross-compilation on macOS:
+
 ```bash
 # If on Intel Mac
 rustup target add aarch64-apple-darwin
 
 # If on Apple Silicon
 rustup target add x86_64-apple-darwin
+```bash
+
 ```
 
 ---
@@ -124,12 +145,14 @@ rustup target add x86_64-apple-darwin
 **Problem**: GitHub release creation failed.
 
 **Possible causes**:
+
 1. Network issues
 2. Permission issues
 3. Tag already exists
 4. No binaries found
 
 **Solution**:
+
 ```bash
 # Check if binaries were built
 ls -la target/release-artifacts/
@@ -139,6 +162,8 @@ git tag -l
 
 # Try creating release manually
 gh release create v0.1.0 --title "v0.1.0" --notes "Release notes" target/release-artifacts/*
+```bash
+
 ```
 
 ---
@@ -148,12 +173,15 @@ gh release create v0.1.0 --title "v0.1.0" --notes "Release notes" target/release
 **Problem**: `target/release/scanner` doesn't exist.
 
 **Solution**:
+
 ```bash
 # Build manually to see errors
 cargo build --release
 
 # Check for compilation errors
 cargo check
+```bash
+
 ```
 
 ---
@@ -180,6 +208,8 @@ gh repo view
 
 # 6. Do a dry run
 ./release.sh --patch --dry-run
+```bash
+
 ```
 
 ---
@@ -218,6 +248,8 @@ gh release create v0.1.1 \
   --title "v0.1.1" \
   --notes "Release v0.1.1" \
   target/release-artifacts/*
+```bash
+
 ```
 
 ---

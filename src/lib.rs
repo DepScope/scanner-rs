@@ -5,6 +5,7 @@
 //! This library provides functionality to discover, parse, and analyze package dependencies
 //! across different package management systems.
 
+pub mod analyzer;
 pub mod indexer;
 pub mod models;
 pub mod output;

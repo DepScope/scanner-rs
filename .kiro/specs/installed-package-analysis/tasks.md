@@ -1,0 +1,250 @@
+# Implementation Plan
+
+- [x] 1. Extend core data models for classification system
+  - [x] 1.1 Create `src/models/classification.rs` with Classification enum and ClassifiedDependency struct
+    - Define `Classification` enum with Has, Should, Can variants
+    - Implement `ClassifiedDependency` struct with HashMap for classifications
+    - Add fields for application_root, installed_path, version_mismatch flags
+    - Implement Debug, Clone derives and helper methods
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [x] 1.2 Create `src/models/application.rs` for application root tracking
+    - Define `Application` struct with name, root_path, manifest_path, ecosystem
+    - Add dependencies field as Vec<ClassifiedDependency>
+    - Implement methods for adding and querying dependencies
+    - _Requirements: 4.2, 4.3_
+  - [x] 1.3 Create `src/models/dependency_tree.rs` for tree structures
+    - Define `DependencyNode` struct with recursive dependencies field
+    - Define `DependencyTree` struct with application and root nodes
+    - Add is_direct field to distinguish direct vs transitive dependencies
+    - _Requirements: 7.3, 7.4, 7.5_
+
+- [x] 2. Implement installation directory detection
+  - [x] 2.1 Create `src/indexer/install_dirs.rs` with detection functions
+    - Implement `find_node_modules()` to identify node_modules directories
+    - Implement `find_site_packages()` to identify site-packages and dist-packages
+    - Implement `find_virtual_envs()` to detect venv, .venv, pyvenv.cfg
+    - Return structured data with installation type and path
+    - _Requirements: 1.1, 2.1, 2.2, 3.1, 3.4, 3.5_
+  - [x] 2.2 Update `src/indexer/mod.rs` to integrate installation directory scanning
+    - Add scan mode parameter (full, installed-only, declared-only)
+    - Conditionally call installation directory detection based on scan mode
+    - Add exclusion logic controlled by --include-install-dirs flag
+    - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 12.1, 12.2, 12.3, 12.4, 12.5_
+
+- [x] 3. Implement Node.js installed package parser
+  - [x] 3.1 Create `src/parsers/installed/node_modules.rs`
+    - Implement parser to read package.json from each node_modules subdirectory
+    - Extract name, version, and dependencies fields
+    - Handle scoped packages (@org/package)
+    - Support nested node_modules directories
+    - Return Vec<InstalledPackage> with dependency specifications
+    - _Requirements: 1.2, 1.3, 1.4, 1.5_
+  - [x] 3.2 Create `src/models/installed_package.rs` for installed package data
+    - Define `InstalledPackage` struct with name, version, path, ecosystem, dependencies
+    - Define `DependencySpec` struct for dependency name and version constraint
+    - Implement serialization and helper methods
+    - _Requirements: 1.4, 7.1_
+  - [x] 3.3 Create unit tests for Node.js installed parser
+    - Test parsing package.json from node_modules subdirectory
+    - Test handling scoped packages
+    - Test extraction of dependencies field
+    - Create test fixture with sample node_modules structure
+    - _Requirements: 1.2, 1.3, 1.4_
+
+- [x] 4. Implement Python installed package parser
+  - [x] 4.1 Create `src/parsers/installed/metadata.rs` for Python metadata parsing
+    - Implement parser for METADATA files from .dist-info directories
+    - Implement parser for PKG-INFO files from .egg-info directories
+    - Extract Name, Version, and Requires-Dist fields
+    - Parse Requires-Dist format (package (>=version))
+    - _Requirements: 2.3, 2.4, 7.2_
+  - [x] 4.2 Create `src/parsers/installed/site_packages.rs`
+    - Implement parser to scan site-packages directory
+    - Identify .dist-info and .egg-info directories
+    - Call metadata parser for each package
+    - Return Vec<InstalledPackage>
+    - _Requirements: 2.3, 2.4, 2.5, 2.6_
+  - [x] 4.3 Add virtual environment path tracking
+    - Detect if site-packages is within a virtual environment
+    - Record virtual environment path in InstalledPackage
+    - _Requirements: 3.2, 3.3_
+  - [x] 4.4 Create unit tests for Python installed parser
+    - Test parsing METADATA file format
+    - Test parsing PKG-INFO file format
+    - Test extraction of Requires-Dist dependencies
+    - Create test fixtures with sample .dist-info directories
+    - _Requirements: 2.3, 2.4, 7.2_
+
+- [x] 5. Implement analyzer module - classifier component
+  - [x] 5.1 Create `src/analyzer/classifier.rs`
+    - Implement function to group DependencyRecords by package name and ecosystem
+    - Assign Has classification to records from installed parsers
+    - Assign Should classification to records from lockfile parsers
+    - Assign Can classification to records from manifest parsers
+    - Create ClassifiedDependency objects with all applicable classifications
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [x] 5.2 Implement version mismatch detection
+    - Compare Has version with Should version for exact match
+    - Set has_version_mismatch flag if they differ
+    - Verify Should version satisfies Can version range using version module
+    - Set has_constraint_violation flag if range not satisfied
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+  - [x] 5.3 Create unit tests for classifier
+    - Test classification with all three types present
+    - Test classification with only Has and Should
+    - Test version mismatch detection
+    - Test constraint violation detection
+    - _Requirements: 5.1, 5.2, 5.3, 8.1, 8.2_
+
+- [x] 6. Implement analyzer module - application linker component
+  - [x] 6.1 Create `src/analyzer/app_linker.rs`
+    - Implement function to find nearest manifest file from installed package path
+    - Traverse parent directories looking for package.json, pyproject.toml, Cargo.toml
+    - Parse manifest to extract application name
+    - Associate ClassifiedDependency with Application
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [x] 6.2 Implement application grouping
+    - Group all ClassifiedDependency objects by application root
+    - Create Application objects with dependencies list
+    - Handle packages without application root (log warning)
+    - _Requirements: 4.2, 4.3_
+  - [x] 6.3 Create unit tests for application linker
+    - Test finding manifest in parent directory
+    - Test extracting application name from manifest
+    - Test handling missing manifest (no application root)
+    - Create test fixtures with directory structures
+    - _Requirements: 4.1, 4.2, 4.3_
+
+- [x] 7. Implement analyzer module - dependency tree builder
+  - [x] 7.1 Create `src/analyzer/tree_builder.rs`
+    - Implement function to build DependencyTree from Application
+    - Start with installed packages (Has classification)
+    - For each package, read its dependencies from InstalledPackage
+    - Recursively build tree by looking up each dependency
+    - Mark direct vs transitive dependencies
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [x] 7.2 Implement circular dependency detection
+    - Track visited nodes during tree traversal
+    - Detect cycles and break them
+    - Log warning when circular dependency found
+    - _Requirements: 7.3_
+  - [x] 7.3 Create unit tests for tree builder
+    - Test building simple tree with direct dependencies
+    - Test building tree with transitive dependencies
+    - Test circular dependency detection
+    - Create test fixtures with dependency relationships
+    - _Requirements: 7.1, 7.3, 7.4, 7.5_
+
+- [x] 8. Implement vulnerability list filtering
+  - [x] 8.1 Create `src/analyzer/vuln_filter.rs`
+    - Implement function to parse vulnerability list file (package@version format)
+    - Create HashSet of vulnerable package-version pairs
+    - Filter ClassifiedDependency list to only include matches
+    - Match against all three classifications (Has, Should, Can)
+    - _Requirements: 6.1, 6.2, 6.3_
+  - [x] 8.2 Implement priority sorting
+    - Sort filtered results with Has classification first
+    - Then Should classification
+    - Then Can classification
+    - Within each priority, sort by package name
+    - _Requirements: 6.4, 6.5_
+  - [x] 8.3 Create unit tests for vulnerability filter
+    - Test parsing vulnerability list file
+    - Test filtering with exact version matches
+    - Test priority sorting
+    - _Requirements: 6.1, 6.2, 6.4_
+
+- [x] 9. Implement enhanced CSV output
+  - [x] 9.1 Update `src/output/csv_writer.rs` with new columns
+    - Add columns: has_version, has_path, should_version, should_path
+    - Add columns: can_version, can_path, version_mismatch, constraint_violation
+    - Add columns: application_name, application_root, parent_package, is_direct
+    - Write ClassifiedDependency objects to CSV with all fields
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7_
+  - [x] 9.2 Implement CSV row generation from ClassifiedDependency
+    - Extract version from each classification HashMap
+    - Extract path from source_files HashMap
+    - Handle missing classifications (empty cells)
+    - Format boolean flags as true/false strings
+    - _Requirements: 9.1, 9.2, 9.3, 9.7_
+
+- [x] 10. Implement JSON tree output
+  - [x] 10.1 Create `src/output/json_writer.rs`
+    - Implement function to serialize Application objects to JSON
+    - Nest ClassifiedDependency objects under application
+    - Represent DependencyTree as nested JSON objects
+    - Include all classification data in JSON output
+    - _Requirements: 10.2, 10.3, 10.4, 10.5_
+  - [x] 10.2 Implement JSON serialization for models
+    - Add Serialize derives to Application, ClassifiedDependency, DependencyNode
+    - Implement custom serialization for Classification enum (lowercase strings)
+    - Format paths as strings in JSON output
+    - _Requirements: 10.3, 10.4, 10.5_
+
+- [x] 11. Update CLI with new flags and modes
+  - [x] 11.1 Update `src/main.rs` CLI argument parsing
+    - Add --scan-mode flag with values: full, installed-only, declared-only
+    - Add --format flag with values: csv, json
+    - Add --include-install-dirs flag (boolean)
+    - Add --vuln-list flag with file path parameter
+    - Add --output flag for custom output file path
+    - _Requirements: 10.1, 11.5, 12.1_
+  - [x] 11.2 Implement scan mode logic
+    - When installed-only: only run installation directory detection and installed parsers
+    - When declared-only: only run manifest and lockfile parsers
+    - When full: run all parsers
+    - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
+  - [x] 11.3 Implement output format selection
+    - When csv: call CSV writer with output path
+    - When json: call JSON writer with output path
+    - Default output file: output.csv or output.json based on format
+    - _Requirements: 10.1, 10.2_
+
+- [x] 12. Integrate all components in main scan orchestration
+  - [x] 12.1 Update main scan flow in `src/main.rs`
+    - Call indexer with scan mode parameter
+    - Parse all discovered files (manifest, lockfile, installed)
+    - Call classifier to assign classifications
+    - Call application linker to associate packages with apps
+    - Optionally call tree builder if JSON output requested
+    - Optionally call vulnerability filter if vuln-list provided
+    - Call appropriate output writer based on format flag
+    - _Requirements: 5.4, 6.3, 6.5, 8.5_
+  - [x] 12.2 Add error handling for new components
+    - Handle missing application roots gracefully
+    - Handle circular dependencies in tree building
+    - Handle malformed vulnerability list files
+    - Log errors and continue processing
+    - _Requirements: 4.1, 7.3_
+
+- [x] 13. Create integration tests
+  - [x] 13.1 Create test fixtures for installed package analysis
+    - Create node_modules structure with sample packages
+    - Create site-packages structure with .dist-info directories
+    - Create complete project with manifest, lockfile, and installed packages
+    - Include nested dependencies for tree building tests
+    - _Requirements: 1.1, 1.2, 2.1, 2.3_
+  - [x] 13.2 Create `tests/integration/installed_analysis.rs`
+    - Test full scan with all three classifications
+    - Test installed-only scan mode
+    - Test application linking
+    - Test dependency tree building
+    - Test vulnerability filtering
+    - Verify CSV output format
+    - Verify JSON output format
+    - _Requirements: 5.4, 6.5, 7.5, 8.3, 9.7, 10.5_
+
+- [x] 14. Update documentation
+  - [x] 14.1 Update README.md with new features
+    - Document HAS/SHOULD/CAN classification system
+    - Add examples of installed package detection
+    - Document new CLI flags (--scan-mode, --format, --vuln-list)
+    - Add example usage for vulnerability checking
+    - Document CSV and JSON output formats
+    - _Requirements: 5.5, 6.1, 10.1, 12.1_
+  - [x] 14.2 Add rustdoc comments to new modules
+    - Document all public structs and functions in analyzer module
+    - Document Classification enum and ClassifiedDependency
+    - Add usage examples in doc comments
+    - Document error conditions and recovery strategies
+    - _Requirements: 5.1, 5.2, 5.3_

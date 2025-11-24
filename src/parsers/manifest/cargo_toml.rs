@@ -1,8 +1,8 @@
 //! Parser for Cargo.toml files
 
-use std::path::Path;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::models::{DependencyRecord, DependencyType, Ecosystem, FileType, ScanError};
 use crate::parsers::Parser;
@@ -24,9 +24,9 @@ impl Parser for CargoTomlParser {
     fn parse(&self, content: &str, file_path: &Path) -> Result<Vec<DependencyRecord>, ScanError> {
         let cargo_toml: CargoToml = toml::from_str(content)
             .map_err(|e| ScanError::toml_error(file_path.to_path_buf(), e))?;
-        
+
         let mut records = Vec::new();
-        
+
         // Parse runtime dependencies
         for (name, value) in cargo_toml.dependencies {
             let version = extract_cargo_version(&value);
@@ -39,7 +39,7 @@ impl Parser for CargoTomlParser {
                 file_type: FileType::Manifest,
             });
         }
-        
+
         // Parse dev dependencies
         for (name, value) in cargo_toml.dev_dependencies {
             let version = extract_cargo_version(&value);
@@ -52,7 +52,7 @@ impl Parser for CargoTomlParser {
                 file_type: FileType::Manifest,
             });
         }
-        
+
         // Parse build dependencies
         for (name, value) in cargo_toml.build_dependencies {
             let version = extract_cargo_version(&value);
@@ -65,18 +65,18 @@ impl Parser for CargoTomlParser {
                 file_type: FileType::Manifest,
             });
         }
-        
+
         Ok(records)
     }
-    
+
     fn ecosystem(&self) -> Ecosystem {
         Ecosystem::Rust
     }
-    
+
     fn file_type(&self) -> FileType {
         FileType::Manifest
     }
-    
+
     fn filename(&self) -> &str {
         "Cargo.toml"
     }
