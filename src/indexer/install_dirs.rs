@@ -224,14 +224,14 @@ fn should_exclude_for_install_scan(path: &Path, exclude_dirs: &[&str]) -> bool {
             return true;
         }
 
-        // Don't traverse into these directories, but we do want to detect them
-        // So we only exclude if this is NOT the directory itself
-        if matches!(name, "node_modules" | "site-packages" | "dist-packages") {
-            // Allow the directory itself to be discovered, but don't traverse into it
-            // This is handled by WalkDir's filter_entry - it will still yield the entry
-            // but won't descend into it
-            return false;
-        }
+        // Special handling for installation directories:
+        // We want to discover them but not traverse into them
+        // Note: This function is used with filter_entry which is called BEFORE
+        // yielding the entry, so we need to allow the directory itself through
+        // but prevent descending into it. However, filter_entry doesn't distinguish
+        // between "yield but don't descend" - it's all or nothing.
+        // So we allow these through and rely on the fact that we only care about
+        // the top-level directory, not its contents.
     }
 
     false

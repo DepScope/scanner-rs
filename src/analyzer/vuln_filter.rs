@@ -299,7 +299,7 @@ mod tests {
         writeln!(temp_file, "wellness-expert-ng-gallery,5.1.1").unwrap();
         writeln!(temp_file, "zapier-async-storage,1.0.3 | 1.0.2 | 1.0.1").unwrap();
         writeln!(temp_file, "# comment").unwrap();
-        writeln!(temp_file, "").unwrap();
+        writeln!(temp_file).unwrap();
         writeln!(temp_file, "zapier-platform-cli,18.0.4 | 18.0.3 | 18.0.2").unwrap();
         temp_file.flush().unwrap();
 
