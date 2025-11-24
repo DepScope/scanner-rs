@@ -15,6 +15,27 @@ A high-performance multi-language dependency scanner for Python, Node.js, and Ru
 
 ## Installation
 
+### From Release (Recommended)
+
+Download the latest binary for your platform from the [releases page](https://github.com/DepScope/scanner-rs/releases):
+
+```bash
+# macOS Apple Silicon (M1/M2)
+curl -L https://github.com/DepScope/scanner-rs/releases/latest/download/scanner-darwin-aarch64.tar.gz | tar xz
+
+# macOS Intel
+curl -L https://github.com/DepScope/scanner-rs/releases/latest/download/scanner-darwin-x86_64.tar.gz | tar xz
+
+# Linux x86_64
+curl -L https://github.com/DepScope/scanner-rs/releases/latest/download/scanner-linux-x86_64.tar.gz | tar xz
+
+# Make executable and move to PATH
+chmod +x scanner
+sudo mv scanner /usr/local/bin/
+```
+
+### From Source
+
 ```bash
 cargo build --release
 ```
@@ -174,6 +195,34 @@ scanner --jobs 16
 ## License
 
 MIT OR Apache-2.0
+
+## Releasing
+
+### Quick Release
+
+```bash
+# Check if ready to release
+./check-release.sh
+
+# Create a release
+./release.sh --patch   # 0.1.0 → 0.1.1
+./release.sh --minor   # 0.1.0 → 0.2.0
+./release.sh --major   # 0.1.0 → 1.0.0
+
+# Or use make
+make release-patch
+make release-minor
+make release-major
+```
+
+The release script will:
+1. Bump version in `Cargo.toml`
+2. Create and push a git tag
+3. Build binaries for your architecture
+4. Create a GitHub release
+5. Trigger CI to build additional architectures
+
+See [RELEASE.md](RELEASE.md) for detailed documentation.
 
 ## Contributing
 

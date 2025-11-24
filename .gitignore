@@ -2,6 +2,10 @@
 /target/
 Cargo.lock
 
+# Release artifacts
+*.tar.gz
+target/release-artifacts/
+
 # IDE
 .vscode/
 .idea/
@@ -16,3 +20,6 @@ Thumbs.db
 # Output files
 output.csv
 *.backup
+
+# Logs
+*.log
