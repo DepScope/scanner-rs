@@ -201,7 +201,7 @@ if [ "$REUPLOAD" = false ]; then
     if [ -f Cargo.lock ]; then
         git add -f Cargo.lock
     fi
-    git commit -m "chore: bump version to ${NEW_VERSION}"
+    git commit -m "chore(release): bump version to ${NEW_VERSION}"
     echo -e "  ${GREEN}✓${NC} Committed version bump"
 
     git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
