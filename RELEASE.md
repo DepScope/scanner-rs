@@ -19,6 +19,11 @@ This document describes how to create a new release of Scanner.
    git status
    ```
 
+4. **Cross-compilation (Optional)**: For building multiple architectures
+   - See [CROSS_COMPILE_SETUP.md](CROSS_COMPILE_SETUP.md) for detailed instructions
+   - Without rustup: Only native architecture will be built
+   - With rustup: All architectures will be built
+
 ## Local Release (Manual)
 
 Use the `release.sh` script to create a release:

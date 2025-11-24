@@ -204,7 +204,7 @@ MIT OR Apache-2.0
 # Check if ready to release
 ./check-release.sh
 
-# Create a release
+# Create a release (native architecture only)
 ./release.sh --patch   # 0.1.0 → 0.1.1
 ./release.sh --minor   # 0.1.0 → 0.2.0
 ./release.sh --major   # 0.1.0 → 1.0.0
@@ -219,8 +219,10 @@ The release script will:
 1. Bump version in `Cargo.toml`
 2. Create and push a git tag
 3. Build binaries for your architecture
-4. Create a GitHub release
-5. Trigger CI to build additional architectures
+4. Cross-compile for other architectures (if rustup is installed)
+5. Create a GitHub release with all binaries
+
+**Note**: For cross-compilation (building for multiple architectures), you need rustup. See [CROSS_COMPILE_SETUP.md](CROSS_COMPILE_SETUP.md) for setup instructions.
 
 See [RELEASE.md](RELEASE.md) for detailed documentation.
 

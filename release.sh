@@ -10,6 +10,7 @@ NC='\033[0m' # No Color
 # Default values
 VERSION_BUMP="patch"
 DRY_RUN=false
+SKIP_CROSS_COMPILE=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -30,9 +31,13 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --no-cross-compile)
+            SKIP_CROSS_COMPILE=true
+            shift
+            ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
-            echo "Usage: ./release.sh [--patch|--minor|--major] [--dry-run]"
+            echo "Usage: ./release.sh [--patch|--minor|--major] [--dry-run] [--no-cross-compile]"
             exit 1
             ;;
     esac
@@ -172,30 +177,83 @@ NATIVE_BINARY="scanner-${NEW_VERSION}-${OS}-${ARCH_NAME}"
 cp target/release/scanner "$RELEASE_DIR/${NATIVE_BINARY}"
 echo -e "Created: ${YELLOW}${NATIVE_BINARY}${NC}"
 
-# Try to cross-compile for other architecture if on macOS
-if [ "$OS" = "darwin" ]; then
+# Cross-compile for other architectures
+if [ "$SKIP_CROSS_COMPILE" = true ]; then
     echo ""
-    echo -e "${GREEN}Attempting cross-compilation for macOS...${NC}"
+    echo -e "${YELLOW}Skipping cross-compilation (--no-cross-compile flag)${NC}"
+else
+    echo ""
+    echo -e "${GREEN}=== Cross-Compilation ===${NC}"
+
+    if [ "$OS" = "darwin" ]; then
+    # macOS: Build for both Intel and Apple Silicon
     
-    # Install targets if not already installed
-    if [ "$ARCH_NAME" = "x86_64" ]; then
-        OTHER_TARGET="aarch64-apple-darwin"
-        OTHER_ARCH="aarch64"
+    # Check if rustup is available
+    if command -v rustup &> /dev/null; then
+        TARGETS=("x86_64-apple-darwin" "aarch64-apple-darwin")
+        
+        for TARGET in "${TARGETS[@]}"; do
+            # Skip if this is the native target (already built)
+            if [[ "$TARGET" == *"$ARCH_NAME"* ]]; then
+                continue
+            fi
+            
+            echo -e "${GREEN}Building for ${TARGET}...${NC}"
+            
+            # Install target if needed
+            if ! rustup target list --installed | grep -q "$TARGET"; then
+                echo -e "Installing target ${TARGET}..."
+                rustup target add "$TARGET"
+            fi
+            
+            # Build
+            if cargo build --release --target "$TARGET"; then
+                TARGET_ARCH=$(echo "$TARGET" | cut -d'-' -f1)
+                BINARY_NAME="scanner-${NEW_VERSION}-darwin-${TARGET_ARCH}"
+                cp "target/${TARGET}/release/scanner" "$RELEASE_DIR/${BINARY_NAME}"
+                echo -e "${GREEN}✓${NC} Created: ${YELLOW}${BINARY_NAME}${NC}"
+            else
+                echo -e "${RED}✗${NC} Failed to build for ${TARGET}"
+            fi
+        done
     else
-        OTHER_TARGET="x86_64-apple-darwin"
-        OTHER_ARCH="x86_64"
+        echo -e "${YELLOW}rustup not found - cross-compilation not available${NC}"
+        echo -e "${YELLOW}You have Rust installed via Homebrew${NC}"
+        echo -e "To enable cross-compilation, install rustup:"
+        echo -e "  ${YELLOW}curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh${NC}"
+        echo -e "Then add targets:"
+        echo -e "  ${YELLOW}rustup target add x86_64-apple-darwin aarch64-apple-darwin${NC}"
     fi
     
-    echo -e "Installing target ${OTHER_TARGET}..."
-    rustup target add "$OTHER_TARGET" 2>/dev/null || true
+elif [ "$OS" = "linux" ]; then
+    # Linux: Can cross-compile with cross tool
+    echo -e "${YELLOW}Note: Linux cross-compilation requires 'cross' tool${NC}"
+    echo -e "Install with: cargo install cross"
+    echo ""
     
-    if cargo build --release --target "$OTHER_TARGET" 2>/dev/null; then
-        OTHER_BINARY="scanner-${NEW_VERSION}-${OS}-${OTHER_ARCH}"
-        cp "target/${OTHER_TARGET}/release/scanner" "$RELEASE_DIR/${OTHER_BINARY}"
-        echo -e "Created: ${YELLOW}${OTHER_BINARY}${NC}"
+    if command -v cross &> /dev/null; then
+        TARGETS=("x86_64-unknown-linux-gnu" "aarch64-unknown-linux-gnu")
+        
+        for TARGET in "${TARGETS[@]}"; do
+            # Skip if this is the native target
+            if [[ "$TARGET" == *"$ARCH_NAME"* ]]; then
+                continue
+            fi
+            
+            echo -e "${GREEN}Building for ${TARGET}...${NC}"
+            
+            if cross build --release --target "$TARGET"; then
+                TARGET_ARCH=$(echo "$TARGET" | cut -d'-' -f1)
+                BINARY_NAME="scanner-${NEW_VERSION}-linux-${TARGET_ARCH}"
+                cp "target/${TARGET}/release/scanner" "$RELEASE_DIR/${BINARY_NAME}"
+                echo -e "${GREEN}✓${NC} Created: ${YELLOW}${BINARY_NAME}${NC}"
+            else
+                echo -e "${RED}✗${NC} Failed to build for ${TARGET}"
+            fi
+        done
     else
-        echo -e "${YELLOW}Warning: Cross-compilation for ${OTHER_TARGET} failed${NC}"
-        echo -e "${YELLOW}Only native binary will be included in release${NC}"
+        echo -e "${YELLOW}Skipping Linux cross-compilation (cross tool not installed)${NC}"
+    fi
     fi
 fi
 
