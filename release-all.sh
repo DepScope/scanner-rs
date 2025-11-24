@@ -111,10 +111,22 @@ fi
 
 # Check: Cross-compilation capability
 if command -v rustup &> /dev/null; then
-    echo -e "  ${GREEN}✓${NC} rustup available (cross-compilation enabled)"
-    CAN_CROSS_COMPILE=true
+    if rustup show 2>&1 | grep -q "active toolchain"; then
+        ACTIVE_TOOLCHAIN=$(rustup show active-toolchain 2>&1)
+        if [[ "$ACTIVE_TOOLCHAIN" == *"no active toolchain"* ]]; then
+            echo -e "  ${YELLOW}⚠${NC} rustup found but no active toolchain (run: rustup default stable)"
+            echo -e "    Using Homebrew Rust for now - limited to native builds"
+            CAN_CROSS_COMPILE=false
+        else
+            echo -e "  ${GREEN}✓${NC} rustup configured (cross-compilation enabled)"
+            CAN_CROSS_COMPILE=true
+        fi
+    else
+        echo -e "  ${YELLOW}⚠${NC} rustup found but not configured"
+        CAN_CROSS_COMPILE=false
+    fi
 else
-    echo -e "  ${YELLOW}⚠${NC} rustup not found (Homebrew Rust - limited to native builds)"
+    echo -e "  ${YELLOW}⚠${NC} rustup not found (limited to native builds)"
     CAN_CROSS_COMPILE=false
 fi
 
