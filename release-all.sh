@@ -72,14 +72,14 @@ fi
 # Check: GitHub CLI
 if command -v gh &> /dev/null; then
     echo -e "  ${GREEN}✓${NC} GitHub CLI installed"
-    
+
     if gh auth status &> /dev/null; then
         echo -e "  ${GREEN}✓${NC} GitHub CLI authenticated"
     else
         echo -e "  ${RED}✗${NC} GitHub CLI not authenticated (run: gh auth login)"
         READY=false
     fi
-    
+
     if gh repo view &> /dev/null; then
         REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
         echo -e "  ${GREEN}✓${NC} Repository: ${YELLOW}${REPO}${NC}"
@@ -230,23 +230,23 @@ echo -e "  ${GREEN}✓${NC} Built ${YELLOW}${NATIVE_BINARY}${NC} (native)"
 if [ "$CAN_CROSS_COMPILE" = true ] && [ "$OS" = "darwin" ]; then
     echo ""
     echo -e "  ${BLUE}Cross-compiling for macOS...${NC}"
-    
+
     TARGETS=("x86_64-apple-darwin" "aarch64-apple-darwin")
-    
+
     for TARGET in "${TARGETS[@]}"; do
         # Skip native target
         if [[ "$TARGET" == *"$ARCH_NAME"* ]]; then
             continue
         fi
-        
+
         TARGET_ARCH=$(echo "$TARGET" | cut -d'-' -f1)
-        
+
         # Install target if needed
         if ! rustup target list --installed | grep -q "$TARGET"; then
             echo -e "  ${YELLOW}→${NC} Installing ${TARGET}..."
             rustup target add "$TARGET" > /dev/null 2>&1
         fi
-        
+
         # Build
         echo -e "  ${YELLOW}→${NC} Building for ${TARGET}..."
         if cargo build --release --target "$TARGET" > /dev/null 2>&1; then
@@ -261,16 +261,16 @@ elif [ "$CAN_CROSS_COMPILE" = true ] && [ "$OS" = "linux" ]; then
     if command -v cross &> /dev/null; then
         echo ""
         echo -e "  ${BLUE}Cross-compiling for Linux...${NC}"
-        
+
         TARGETS=("x86_64-unknown-linux-gnu" "aarch64-unknown-linux-gnu")
-        
+
         for TARGET in "${TARGETS[@]}"; do
             if [[ "$TARGET" == *"$ARCH_NAME"* ]]; then
                 continue
             fi
-            
+
             TARGET_ARCH=$(echo "$TARGET" | cut -d'-' -f1)
-            
+
             echo -e "  ${YELLOW}→${NC} Building for ${TARGET}..."
             if cross build --release --target "$TARGET" > /dev/null 2>&1; then
                 BINARY_NAME="scanner-${NEW_VERSION}-linux-${TARGET_ARCH}"
@@ -352,10 +352,27 @@ if [ -z "$(ls -A "$RELEASE_DIR")" ]; then
     exit 1
 fi
 
+# Collect all binary paths
+BINARY_PATHS=()
+for binary in "$RELEASE_DIR"/*; do
+    if [ -f "$binary" ]; then
+        BINARY_PATHS+=("$binary")
+        echo -e "  ${YELLOW}→${NC} Will upload: $(basename "$binary")"
+    fi
+done
+
+if [ ${#BINARY_PATHS[@]} -eq 0 ]; then
+    echo -e "${RED}✗ No binary files found in $RELEASE_DIR${NC}"
+    exit 1
+fi
+
+echo ""
+echo -e "  ${BLUE}Creating GitHub release with ${#BINARY_PATHS[@]} binary/binaries...${NC}"
+
 echo "$RELEASE_NOTES" | gh release create "v${NEW_VERSION}" \
     --title "v${NEW_VERSION}" \
     --notes-file - \
-    "$RELEASE_DIR"/* || {
+    "${BINARY_PATHS[@]}" || {
         echo -e "${RED}✗ Failed to create GitHub release${NC}"
         echo "You may need to delete the tag and try again:"
         echo "  git tag -d v${NEW_VERSION}"
@@ -363,7 +380,7 @@ echo "$RELEASE_NOTES" | gh release create "v${NEW_VERSION}" \
         exit 1
     }
 
-echo -e "  ${GREEN}✓${NC} GitHub release created"
+echo -e "  ${GREEN}✓${NC} GitHub release created with ${#BINARY_PATHS[@]} binary/binaries"
 
 # ============================================================================
 # DONE

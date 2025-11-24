@@ -6,7 +6,7 @@ inclusion: always
 
 ## Directory Layout
 
-```
+```bash
 .
 ├── src/
 │   └── main.rs          # Single-file application with all logic

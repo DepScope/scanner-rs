@@ -1,8 +1,8 @@
 //! Parser for pyproject.toml files
 
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
-use serde::Deserialize;
 
 use crate::models::{DependencyRecord, DependencyType, Ecosystem, FileType, ScanError};
 use crate::parsers::Parser;
@@ -42,9 +42,9 @@ impl Parser for PyprojectTomlParser {
     fn parse(&self, content: &str, file_path: &Path) -> Result<Vec<DependencyRecord>, ScanError> {
         let pyproject: PyprojectToml = toml::from_str(content)
             .map_err(|e| ScanError::toml_error(file_path.to_path_buf(), e))?;
-        
+
         let mut records = Vec::new();
-        
+
         // Parse PEP 621 dependencies (project.dependencies)
         if let Some(project) = pyproject.project {
             for dep_spec in project.dependencies {
@@ -60,7 +60,7 @@ impl Parser for PyprojectTomlParser {
                 }
             }
         }
-        
+
         // Parse Poetry dependencies
         if let Some(tool) = pyproject.tool {
             if let Some(poetry) = tool.poetry {
@@ -70,7 +70,7 @@ impl Parser for PyprojectTomlParser {
                     if name == "python" {
                         continue;
                     }
-                    
+
                     let version = extract_poetry_version(&value);
                     records.push(DependencyRecord {
                         name,
@@ -81,7 +81,7 @@ impl Parser for PyprojectTomlParser {
                         file_type: FileType::Manifest,
                     });
                 }
-                
+
                 // Dev dependencies
                 for (name, value) in poetry.dev_dependencies {
                     let version = extract_poetry_version(&value);
@@ -96,18 +96,18 @@ impl Parser for PyprojectTomlParser {
                 }
             }
         }
-        
+
         Ok(records)
     }
-    
+
     fn ecosystem(&self) -> Ecosystem {
         Ecosystem::Python
     }
-    
+
     fn file_type(&self) -> FileType {
         FileType::Manifest
     }
-    
+
     fn filename(&self) -> &str {
         "pyproject.toml"
     }
@@ -117,7 +117,7 @@ impl Parser for PyprojectTomlParser {
 fn parse_pep_508_dependency(spec: &str) -> Option<(String, String)> {
     // Simple parsing: split on common operators
     let spec = spec.trim();
-    
+
     for op in &[">=", "<=", "==", "!=", "~=", ">", "<"] {
         if let Some(pos) = spec.find(op) {
             let name = spec[..pos].trim().to_string();
@@ -125,7 +125,7 @@ fn parse_pep_508_dependency(spec: &str) -> Option<(String, String)> {
             return Some((name, version));
         }
     }
-    
+
     // No version specified
     Some((spec.to_string(), "*".to_string()))
 }

@@ -1,7 +1,7 @@
 //! Parser for Cargo.lock files
 
-use std::path::Path;
 use serde::Deserialize;
+use std::path::Path;
 
 use crate::models::{DependencyRecord, DependencyType, Ecosystem, FileType, ScanError};
 use crate::parsers::Parser;
@@ -25,9 +25,9 @@ impl Parser for CargoLockParser {
     fn parse(&self, content: &str, file_path: &Path) -> Result<Vec<DependencyRecord>, ScanError> {
         let cargo_lock: CargoLock = toml::from_str(content)
             .map_err(|e| ScanError::toml_error(file_path.to_path_buf(), e))?;
-        
+
         let mut records = Vec::new();
-        
+
         for package in cargo_lock.package {
             records.push(DependencyRecord {
                 name: package.name,
@@ -38,18 +38,18 @@ impl Parser for CargoLockParser {
                 file_type: FileType::Lockfile,
             });
         }
-        
+
         Ok(records)
     }
-    
+
     fn ecosystem(&self) -> Ecosystem {
         Ecosystem::Rust
     }
-    
+
     fn file_type(&self) -> FileType {
         FileType::Lockfile
     }
-    
+
     fn filename(&self) -> &str {
         "Cargo.lock"
     }

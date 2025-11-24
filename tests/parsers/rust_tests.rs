@@ -1,8 +1,8 @@
-use std::path::Path;
 use scanner::models::{DependencyType, Ecosystem, FileType};
-use scanner::parsers::manifest::CargoTomlParser;
 use scanner::parsers::lockfile::CargoLockParser;
+use scanner::parsers::manifest::CargoTomlParser;
 use scanner::parsers::Parser;
+use std::path::Path;
 
 #[test]
 fn test_parse_cargo_toml() {
@@ -21,27 +21,27 @@ criterion = "0.5"
 [build-dependencies]
 cc = "1.0"
 "#;
-    
+
     let parser = CargoTomlParser;
     let result = parser.parse(content, Path::new("Cargo.toml")).unwrap();
-    
+
     assert_eq!(result.len(), 4);
-    
+
     let serde = result.iter().find(|d| d.name == "serde");
     assert!(serde.is_some());
     let serde = serde.unwrap();
     assert_eq!(serde.version, "1.0");
     assert_eq!(serde.dep_type, DependencyType::Runtime);
     assert_eq!(serde.ecosystem, Ecosystem::Rust);
-    
+
     let tokio = result.iter().find(|d| d.name == "tokio");
     assert!(tokio.is_some());
     assert_eq!(tokio.unwrap().version, "1.32.0");
-    
+
     let criterion = result.iter().find(|d| d.name == "criterion");
     assert!(criterion.is_some());
     assert_eq!(criterion.unwrap().dep_type, DependencyType::Development);
-    
+
     let cc = result.iter().find(|d| d.name == "cc");
     assert!(cc.is_some());
     assert_eq!(cc.unwrap().dep_type, DependencyType::Build);
@@ -50,15 +50,25 @@ cc = "1.0"
 #[test]
 fn test_parse_cargo_toml_fixture() {
     let content = std::fs::read_to_string("tests/fixtures/rust/Cargo.toml").unwrap();
-    
+
     let parser = CargoTomlParser;
-    let result = parser.parse(&content, Path::new("tests/fixtures/rust/Cargo.toml")).unwrap();
-    
+    let result = parser
+        .parse(&content, Path::new("tests/fixtures/rust/Cargo.toml"))
+        .unwrap();
+
     assert!(result.len() >= 6);
-    assert!(result.iter().any(|d| d.name == "serde" && d.dep_type == DependencyType::Runtime));
-    assert!(result.iter().any(|d| d.name == "tokio" && d.version == "1.32.0"));
-    assert!(result.iter().any(|d| d.name == "criterion" && d.dep_type == DependencyType::Development));
-    assert!(result.iter().any(|d| d.name == "cc" && d.dep_type == DependencyType::Build));
+    assert!(result
+        .iter()
+        .any(|d| d.name == "serde" && d.dep_type == DependencyType::Runtime));
+    assert!(result
+        .iter()
+        .any(|d| d.name == "tokio" && d.version == "1.32.0"));
+    assert!(result
+        .iter()
+        .any(|d| d.name == "criterion" && d.dep_type == DependencyType::Development));
+    assert!(result
+        .iter()
+        .any(|d| d.name == "cc" && d.dep_type == DependencyType::Build));
 }
 
 #[test]
@@ -77,19 +87,19 @@ name = "tokio"
 version = "1.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 "#;
-    
+
     let parser = CargoLockParser;
     let result = parser.parse(content, Path::new("Cargo.lock")).unwrap();
-    
+
     assert_eq!(result.len(), 2);
-    
+
     let serde = result.iter().find(|d| d.name == "serde");
     assert!(serde.is_some());
     let serde = serde.unwrap();
     assert_eq!(serde.version, "1.0.188");
     assert_eq!(serde.ecosystem, Ecosystem::Rust);
     assert_eq!(serde.file_type, FileType::Lockfile);
-    
+
     let tokio = result.iter().find(|d| d.name == "tokio");
     assert!(tokio.is_some());
     assert_eq!(tokio.unwrap().version, "1.32.0");
@@ -98,14 +108,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 #[test]
 fn test_parse_cargo_lock_fixture() {
     let content = std::fs::read_to_string("tests/fixtures/rust/Cargo.lock").unwrap();
-    
+
     let parser = CargoLockParser;
-    let result = parser.parse(&content, Path::new("tests/fixtures/rust/Cargo.lock")).unwrap();
-    
+    let result = parser
+        .parse(&content, Path::new("tests/fixtures/rust/Cargo.lock"))
+        .unwrap();
+
     assert_eq!(result.len(), 3);
-    assert!(result.iter().any(|d| d.name == "serde" && d.version == "1.0.188"));
-    assert!(result.iter().any(|d| d.name == "tokio" && d.version == "1.32.0"));
-    assert!(result.iter().any(|d| d.name == "regex" && d.version == "1.10.2"));
+    assert!(result
+        .iter()
+        .any(|d| d.name == "serde" && d.version == "1.0.188"));
+    assert!(result
+        .iter()
+        .any(|d| d.name == "tokio" && d.version == "1.32.0"));
+    assert!(result
+        .iter()
+        .any(|d| d.name == "regex" && d.version == "1.10.2"));
 }
 
 #[test]

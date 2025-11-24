@@ -38,6 +38,8 @@ cargo run -- --verbose --jobs 4
 
 # Run tests (if present)
 cargo test
+```bash
+
 ```
 
 ## Code Style Conventions

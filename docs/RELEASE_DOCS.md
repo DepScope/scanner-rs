@@ -5,6 +5,7 @@ Quick reference for all release-related documentation.
 ## Main Documentation
 
 📘 **[RELEASING.md](../RELEASING.md)** - Start here!
+
 - Complete release guide
 - Quick start commands
 - Prerequisites
@@ -14,12 +15,14 @@ Quick reference for all release-related documentation.
 ## Specialized Guides
 
 🔧 **[CROSS_COMPILE_SETUP.md](../CROSS_COMPILE_SETUP.md)**
+
 - Setting up cross-compilation
 - rustup vs Homebrew Rust
 - Adding compilation targets
 - Platform-specific instructions
 
 🐛 **[TROUBLESHOOTING.md](../TROUBLESHOOTING.md)**
+
 - Common issues and solutions
 - Error messages explained
 - Manual release process
@@ -28,6 +31,7 @@ Quick reference for all release-related documentation.
 ## Quick Reference
 
 ### Create a Release
+
 ```bash
 ./release-all.sh --patch   # Bug fixes
 ./release-all.sh --minor   # New features
@@ -35,12 +39,14 @@ Quick reference for all release-related documentation.
 ```
 
 ### Enable Cross-Compilation
+
 ```bash
 rustup default stable
 rustup target add x86_64-apple-darwin aarch64-apple-darwin
 ```
 
 ### Test Before Release
+
 ```bash
 ./release-all.sh --patch --dry-run
 ```

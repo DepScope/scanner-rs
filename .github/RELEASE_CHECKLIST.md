@@ -49,6 +49,7 @@ The script will automatically run pre-flight checks before proceeding.
 See [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md) or [RELEASING.md](../../RELEASING.md) for common issues and solutions.
 
 Quick rollback:
+
 ```bash
 # Delete release
 gh release delete vX.Y.Z --yes

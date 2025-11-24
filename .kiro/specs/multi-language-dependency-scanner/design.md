@@ -10,7 +10,7 @@ The system will maintain the existing high-performance characteristics (parallel
 
 ### High-Level Structure
 
-```
+```text
 scanner/
 ├── src/
 │   ├── main.rs                 # CLI entry point, orchestration
@@ -53,32 +53,37 @@ scanner/
     │   └── rust/
     └── integration/
         └── end_to_end.rs
-```
+```text
 
 ### Component Responsibilities
 
 **Indexer Module**: Fast filesystem traversal to identify relevant package files
+
 - Parallel directory walking with `walkdir` and `rayon`
 - File type classification (manifest vs lockfile, ecosystem detection)
 - Exclusion rules (node_modules, target, .nx, etc.)
 
 **Parser Module**: Structured parsing of each file format
+
 - Common `Parser` trait defining `parse()` method
 - Separate implementations for each file format
 - Returns standardized `DependencyRecord` structures
 
 **Models Module**: Core data structures
+
 - `DependencyRecord`: name, version, source_file, dep_type, ecosystem
 - `ManifestDependency`: declared dependencies with version ranges
 - `LockfileDependency`: resolved dependencies with exact versions
 - `ScanResult`: aggregated results across all files
 
 **Version Module**: Ecosystem-specific version handling
+
 - Node.js: `node-semver` crate for npm-style ranges
 - Rust: `semver` crate for Cargo-style requirements
 - Python: Custom PEP 440 implementation or `pep440_rs` crate
 
 **Output Module**: Result formatting and export
+
 - CSV generation with enhanced columns
 - Future: JSON, YAML output formats
 
@@ -90,10 +95,10 @@ scanner/
 pub trait Parser {
     /// Parse a file and extract dependency information
     fn parse(&self, content: &str, file_path: &Path) -> Result<Vec<DependencyRecord>, ParseError>;
-    
+
     /// Get the ecosystem this parser handles
     fn ecosystem(&self) -> Ecosystem;
-    
+
     /// Get the file type (manifest or lockfile)
     fn file_type(&self) -> FileType;
 }
@@ -108,7 +113,7 @@ pub enum FileType {
     Manifest,
     Lockfile,
 }
-```
+```text
 
 ### Dependency Record Model
 
@@ -116,19 +121,19 @@ pub enum FileType {
 pub struct DependencyRecord {
     /// Package name
     pub name: String,
-    
+
     /// Version specification (range for manifests, exact for lockfiles)
     pub version: String,
-    
+
     /// Source file path
     pub source_file: PathBuf,
-    
+
     /// Dependency type (dependencies, devDependencies, build-dependencies, etc.)
     pub dep_type: DependencyType,
-    
+
     /// Ecosystem
     pub ecosystem: Ecosystem,
-    
+
     /// Whether this is from a manifest or lockfile
     pub file_type: FileType,
 }
@@ -140,7 +145,7 @@ pub enum DependencyType {
     Optional,
     Build,
 }
-```
+```text
 
 ### Parser Registry
 
@@ -154,20 +159,20 @@ impl ParserRegistry {
         let mut registry = Self {
             parsers: HashMap::new(),
         };
-        
+
         // Register all parsers
         registry.register("package.json", Box::new(PackageJsonParser));
         registry.register("yarn.lock", Box::new(YarnLockParser));
         // ... etc
-        
+
         registry
     }
-    
+
     pub fn get_parser(&self, filename: &str) -> Option<&dyn Parser> {
         self.parsers.get(filename).map(|b| b.as_ref())
     }
 }
-```
+```text
 
 ## Data Models
 
@@ -177,20 +182,20 @@ impl ParserRegistry {
 pub struct DiscoveredFile {
     /// Absolute path to the file
     pub path: PathBuf,
-    
+
     /// File name (e.g., "package.json")
     pub filename: String,
-    
+
     /// Parent directory path
     pub directory: PathBuf,
-    
+
     /// Detected ecosystem
     pub ecosystem: Ecosystem,
-    
+
     /// File type classification
     pub file_type: FileType,
 }
-```
+```text
 
 ### Scan Configuration
 
@@ -198,44 +203,48 @@ pub struct DiscoveredFile {
 pub struct ScanConfig {
     /// Root directory to scan
     pub root_dir: PathBuf,
-    
+
     /// Number of parallel threads
     pub num_threads: usize,
-    
+
     /// Whether to scan recursively
     pub recursive: bool,
-    
+
     /// Directories to exclude
     pub exclude_dirs: Vec<String>,
-    
+
     /// Ecosystems to scan (None = all)
     pub ecosystems: Option<Vec<Ecosystem>>,
-    
+
     /// Verbose logging
     pub verbose: bool,
 }
-```
+```text
 
 ## Parser Implementation Details
 
 ### Node.js Parsers
 
 **package.json** (Manifest)
+
 - Crate: `serde_json`
 - Extract: `dependencies`, `devDependencies`, `peerDependencies`, `optionalDependencies`
 - Version format: npm semver ranges (^, ~, >=, etc.)
 
 **yarn.lock** (Lockfile)
+
 - Crate: `yarn-lock-parser` (v0.11.0)
 - Extract: Resolved versions for each package entry
 - Handles both Yarn v1 and v2 formats
 
 **package-lock.json** (Lockfile)
+
 - Crate: `serde_json` with custom structs
 - Extract: Versions from `dependencies` and `packages` sections
 - Handles v1, v2, and v3 formats
 
 **pnpm-lock.yaml** (Lockfile)
+
 - Crate: `serde_yaml` with custom structs
 - Extract: Package versions from YAML structure
 - Parse package keys like `/package/1.2.3`
@@ -243,21 +252,25 @@ pub struct ScanConfig {
 ### Python Parsers
 
 **pyproject.toml** (Manifest)
+
 - Crate: `pyproject-toml` (v0.10.1)
 - Extract: `dependencies`, `tool.poetry.dependencies`, `tool.poetry.dev-dependencies`
 - Version format: PEP 440 specifiers
 
 **requirements.txt** (Manifest)
+
 - Crate: `requirements` (v0.1.3) or custom parser
 - Extract: Package names and version specifiers
 - Handle extras, URLs, and comments
 
 **poetry.lock** (Lockfile)
+
 - Crate: `toml` with custom structs
 - Extract: Exact versions from `[[package]]` sections
 - Parse TOML structure
 
 **uv.lock** (Lockfile)
+
 - Crate: `toml` with custom structs
 - Extract: Resolved versions from TOML format
 - Similar structure to poetry.lock
@@ -265,11 +278,13 @@ pub struct ScanConfig {
 ### Rust Parsers
 
 **Cargo.toml** (Manifest)
+
 - Crate: `cargo_toml` (v0.21.3)
 - Extract: `dependencies`, `dev-dependencies`, `build-dependencies`
 - Version format: Cargo version requirements
 
 **Cargo.lock** (Lockfile)
+
 - Crate: `cargo_lock` (v11.0.0)
 - Extract: Exact resolved versions
 - Supports v1-v4 lockfile formats
@@ -283,22 +298,22 @@ pub struct ScanConfig {
 pub enum ScanError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     #[error("Parse error in {file}: {message}")]
     Parse {
         file: PathBuf,
         message: String,
     },
-    
+
     #[error("Unsupported file format: {0}")]
     UnsupportedFormat(String),
-    
+
     #[error("Version parse error: {0}")]
     VersionParse(String),
 }
 
 pub type Result<T> = std::result::Result<T, ScanError>;
-```
+```text
 
 ### Error Recovery Strategy
 
@@ -317,7 +332,7 @@ Each parser module will have comprehensive unit tests:
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_package_json_dependencies() {
         let content = r#"{
@@ -329,28 +344,29 @@ mod tests {
                 "typescript": "^5.0.0"
             }
         }"#;
-        
+
         let parser = PackageJsonParser;
         let result = parser.parse(content, Path::new("package.json")).unwrap();
-        
+
         assert_eq!(result.len(), 3);
         assert!(result.iter().any(|d| d.name == "react" && d.version == "^18.2.0"));
     }
-    
+
     #[test]
     fn test_parse_malformed_json() {
         let content = "{ invalid json }";
         let parser = PackageJsonParser;
         let result = parser.parse(content, Path::new("package.json"));
-        
+
         assert!(result.is_err());
     }
 }
-```
+```text
 
 ### Test Fixtures
 
 Create realistic test files in `tests/fixtures/`:
+
 - `node/package.json` - Real-world package.json with various dependency types
 - `node/yarn.lock` - Yarn lockfile with multiple packages
 - `python/pyproject.toml` - Poetry project with dependencies
@@ -361,6 +377,7 @@ Create realistic test files in `tests/fixtures/`:
 ### Integration Tests
 
 End-to-end tests that:
+
 1. Create temporary directory structure with test fixtures
 2. Run full scan
 3. Verify all expected dependencies are found
@@ -391,26 +408,31 @@ End-to-end tests that:
 ## Migration from Current Implementation
 
 ### Phase 1: Module Structure
+
 1. Create new directory structure
 2. Move existing code into appropriate modules
 3. Extract common types into models module
 
 ### Phase 2: Parser Abstraction
+
 1. Implement Parser trait
 2. Refactor existing npm parsers to implement trait
 3. Create ParserRegistry
 
 ### Phase 3: Add Python Support
+
 1. Implement pyproject.toml parser
 2. Implement requirements.txt parser
 3. Implement poetry.lock parser
 4. Implement uv.lock parser
 
 ### Phase 4: Add Rust Support
+
 1. Implement Cargo.toml parser
 2. Implement Cargo.lock parser
 
 ### Phase 5: Enhanced Output
+
 1. Update DependencyRecord model
 2. Modify CSV output to include new fields
 3. Add ecosystem and file_type columns
@@ -456,30 +478,35 @@ cargo_lock = "11.0"
 
 # New - YAML
 serde_yaml = "0.9"
-```
+```text
 
 ## Future Enhancements
 
 ### Java Support
+
 - Maven: `pom.xml` (manifest), `pom.xml.lock` (lockfile)
 - Gradle: `build.gradle` / `build.gradle.kts` (manifest), `gradle.lockfile` (lockfile)
 
 ### Additional Output Formats
+
 - JSON output for programmatic consumption
 - YAML output for human readability
 - HTML report with visualization
 
 ### Dependency Graph
+
 - Build dependency tree showing relationships
 - Identify transitive dependencies
 - Detect circular dependencies
 
 ### Version Analysis
+
 - Identify outdated packages
 - Check for security vulnerabilities (integrate with advisory databases)
 - Suggest version updates
 
 ### Configuration File
+
 - Support `.scannerrc` or `scanner.toml` for project-specific settings
 - Define custom exclusion patterns
 - Configure output format preferences
