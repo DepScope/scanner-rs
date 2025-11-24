@@ -62,6 +62,20 @@ if ! command -v gh &> /dev/null; then
     exit 1
 fi
 
+# Check if gh is authenticated
+if ! gh auth status &> /dev/null; then
+    echo -e "${RED}Error: GitHub CLI is not authenticated${NC}"
+    echo "Run: gh auth login"
+    exit 1
+fi
+
+# Verify we can access the repository
+if ! gh repo view &> /dev/null; then
+    echo -e "${RED}Error: Cannot access GitHub repository${NC}"
+    echo "Make sure you have a remote repository configured"
+    exit 1
+fi
+
 # Get current version from Cargo.toml
 CURRENT_VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
 echo -e "Current version: ${YELLOW}${CURRENT_VERSION}${NC}"
@@ -105,7 +119,14 @@ cargo build --release
 
 # Commit version bump
 echo -e "${GREEN}Committing version bump...${NC}"
-git add Cargo.toml Cargo.lock
+git add Cargo.toml
+# Add Cargo.lock if it exists and is tracked
+if [ -f Cargo.lock ] && git ls-files --error-unmatch Cargo.lock &>/dev/null; then
+    git add Cargo.lock
+elif [ -f Cargo.lock ]; then
+    # Force add if it exists but is ignored
+    git add -f Cargo.lock
+fi
 git commit -m "chore: bump version to ${NEW_VERSION}"
 
 # Create git tag
@@ -114,7 +135,8 @@ git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
 
 # Push changes and tags
 echo -e "${GREEN}Pushing to remote...${NC}"
-git push origin main
+CURRENT_BRANCH=$(git branch --show-current)
+git push origin "$CURRENT_BRANCH"
 git push origin "v${NEW_VERSION}"
 
 echo ""
@@ -206,10 +228,21 @@ See commit history for details.
 "
 
 # Create GitHub release with all binaries
+if [ -z "$(ls -A "$RELEASE_DIR")" ]; then
+    echo -e "${RED}Error: No binaries found in $RELEASE_DIR${NC}"
+    exit 1
+fi
+
 echo "$RELEASE_NOTES" | gh release create "v${NEW_VERSION}" \
     --title "v${NEW_VERSION}" \
     --notes-file - \
-    "$RELEASE_DIR"/*
+    "$RELEASE_DIR"/* || {
+        echo -e "${RED}Error: Failed to create GitHub release${NC}"
+        echo "You may need to delete the tag and try again:"
+        echo "  git tag -d v${NEW_VERSION}"
+        echo "  git push origin :refs/tags/v${NEW_VERSION}"
+        exit 1
+    }
 
 echo ""
 echo -e "${GREEN}=== Release Complete! ===${NC}"
