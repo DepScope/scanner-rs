@@ -563,6 +563,9 @@ scanner --infected-list shai-hulud2.csv --dir ~ --output scan.csv
 # View infected packages
 grep "INFECTED" scan.csv
 
+# Visualize results in dashboard
+cd dashboard && streamlit run app.py
+
 # Detailed analysis guide
 See docs/SCAN_SUPPLYCHAIN.md
 ```
@@ -581,7 +584,77 @@ scanner --format json --output results.json
 
 # Verbose output for debugging
 scanner --verbose --dir /path/to/project
+
+# Visualize results
+cd dashboard && streamlit run app.py
 ```
+
+## Dashboard
+
+Scanner includes an interactive Streamlit dashboard for visualizing scan results. The dashboard provides:
+
+- **Multi-page Analysis**: Separate views for Node.js, Python, and Rust packages
+- **Interactive Visualizations**: Charts and graphs for package distribution and version analysis
+- **Infected Package Detection**: Visual identification of compromised packages
+- **Version Consistency Analysis**: Identify packages with multiple versions across your codebase
+- **CSV File Management**: Upload, browse, or manually specify CSV files to analyze
+
+### Installation
+
+```bash
+cd dashboard
+pip install -r requirements.txt
+```
+
+### Running the Dashboard
+
+```bash
+# From the dashboard directory
+streamlit run app.py
+
+# Or specify a custom CSV file
+streamlit run app.py -- --csv-path /path/to/results.csv
+```
+
+The dashboard will open in your browser at `http://localhost:8501`.
+
+### Features
+
+**Main Overview Page**:
+
+- Total package counts and unique package metrics
+- Most frequently used packages across all ecosystems
+- Infected package analysis with distribution charts
+- Package version distribution for selected packages
+- Raw data viewer with CSV export
+
+**Ecosystem-Specific Pages**:
+
+- **Node Packages** (📦): Node.js/npm package analysis
+- **Python Packages** (🐍): Python package analysis
+- **Rust Packages** (🦀): Rust crate analysis
+
+Each page includes:
+
+- Top 20 most used packages
+- Version consistency analysis
+- Framework/library detection
+- Detailed package information with expandable views
+
+**CSV File Loading Options**:
+
+1. **Upload**: Drag and drop or browse for a CSV file
+2. **Browse**: Select from available CSV files in the workspace
+3. **Manual Path**: Enter a file path directly
+
+### Dashboard Requirements
+
+- Python 3.8+
+- Streamlit 1.40+
+- Pandas
+- Plotly
+
+See `dashboard/requirements.txt` for complete dependencies.
 
 ## Documentation
 
