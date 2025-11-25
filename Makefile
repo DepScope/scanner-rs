@@ -1,4 +1,4 @@
-.PHONY: help build test check fmt clippy pre-commit setup-hooks release-patch release-minor release-major release-dry-run
+.PHONY: help build test check fmt clippy pre-commit setup-hooks release-patch release-minor release-major release-dry-run cross-compile docker-build-linux
 
 help:
 	@echo "Scanner - Development & Release Management"
@@ -11,6 +11,10 @@ help:
 	@echo "  clippy          - Run clippy linter"
 	@echo "  pre-commit      - Run all pre-commit checks"
 	@echo "  setup-hooks     - Install pre-commit hooks"
+	@echo ""
+	@echo "Cross-compilation targets:"
+	@echo "  cross-compile      - Build for all platforms (auto-uses Docker for Linux)"
+	@echo "  docker-build-linux - Build Linux binaries using Docker"
 	@echo ""
 	@echo "Release targets:"
 	@echo "  release-patch   - Create patch release with all binaries (0.1.0 → 0.1.1)"
@@ -55,3 +59,9 @@ release-major:
 
 release-dry-run:
 	./release-all.sh --patch --dry-run
+
+cross-compile:
+	./cross-compile.sh
+
+docker-build-linux:
+	./docker-build-linux.sh

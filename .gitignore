@@ -32,3 +32,6 @@ full.csv
 # Coverage reports
 cobertura.xml
 tarpaulin-report.html
+
+.cargo
+dist/
