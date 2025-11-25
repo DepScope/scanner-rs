@@ -1,16 +1,18 @@
 //! Classifier component for assigning HAS/SHOULD/CAN classifications
 //!
-//! This module groups dependency records by package name and ecosystem,
-//! then assigns appropriate classifications based on the source:
+//! This module creates separate ClassifiedDependency entries for each finding
+//! without deduplication. Each installed package or declared dependency gets
+//! its own entry, allowing for complete visibility of all findings.
+//!
+//! Classifications are assigned based on the source:
 //!
 //! - **HAS**: From installed package parsers (node_modules, site-packages)
 //! - **SHOULD**: From lockfile parsers (package-lock.json, poetry.lock, etc.)
 //! - **CAN**: From manifest parsers (package.json, pyproject.toml, etc.)
 
 use crate::models::{
-    Classification, ClassifiedDependency, DependencyRecord, Ecosystem, FileType, InstalledPackage,
+    Classification, ClassifiedDependency, DependencyRecord, FileType, InstalledPackage,
 };
-use std::collections::HashMap;
 
 /// Classifier for assigning HAS/SHOULD/CAN classifications
 pub struct Classifier;
@@ -23,38 +25,40 @@ impl Classifier {
 
     /// Classify dependency records and installed packages
     ///
-    /// Groups all dependencies by (name, ecosystem) and assigns appropriate
-    /// classifications based on their source.
+    /// Creates separate entries for each unique finding without deduplication.
+    /// Each installed package or declared dependency gets its own ClassifiedDependency entry.
     pub fn classify(
         &self,
         records: Vec<DependencyRecord>,
         installed: Vec<InstalledPackage>,
     ) -> Vec<ClassifiedDependency> {
-        // Group by (name, ecosystem)
-        let mut grouped: HashMap<(String, Ecosystem), ClassifiedDependency> = HashMap::new();
+        let mut results = Vec::new();
 
         // Process installed packages (HAS classification)
+        // Each installed package gets its own entry
         for pkg in installed {
-            let key = (pkg.name.clone(), pkg.ecosystem);
-            let dep = grouped
-                .entry(key.clone())
-                .or_insert_with(|| ClassifiedDependency::new(pkg.name.clone(), pkg.ecosystem));
-
+            let mut dep = ClassifiedDependency::new(pkg.name.clone(), pkg.ecosystem);
             dep.add_classification(Classification::Has, pkg.version.clone(), pkg.path.clone());
             dep.installed_path = Some(pkg.path.clone());
+
+            // Set package_name_path from the installed path
+            dep.package_name_path = Some(pkg.path.to_string_lossy().to_string());
 
             // Store dependencies for tree building
             for dep_spec in &pkg.dependencies {
                 dep.dependencies.push(dep_spec.name.clone());
             }
+
+            results.push(dep);
         }
 
         // Process dependency records (SHOULD and CAN classifications)
+        // Each record gets its own entry
         for record in records {
-            let key = (record.name.clone(), record.ecosystem);
-            let dep = grouped.entry(key.clone()).or_insert_with(|| {
-                ClassifiedDependency::new(record.name.clone(), record.ecosystem)
-            });
+            let mut dep = ClassifiedDependency::new(record.name.clone(), record.ecosystem);
+
+            // Set package_name_path from the source file
+            dep.package_name_path = Some(record.source_file.to_string_lossy().to_string());
 
             match record.file_type {
                 FileType::Lockfile => {
@@ -72,10 +76,11 @@ impl Classifier {
                     );
                 }
             }
+
+            results.push(dep);
         }
 
-        // Convert to vector
-        grouped.into_values().collect()
+        results
     }
 }
 
@@ -88,7 +93,7 @@ impl Default for Classifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::DependencyType;
+    use crate::models::{DependencyType, Ecosystem};
     use std::path::PathBuf;
 
     #[test]
@@ -197,22 +202,29 @@ mod tests {
 
         let classified = classifier.classify(records, installed);
 
-        assert_eq!(classified.len(), 1);
-        assert!(classified[0].has_classification(Classification::Has));
-        assert!(classified[0].has_classification(Classification::Should));
-        assert!(classified[0].has_classification(Classification::Can));
+        // Now each finding is separate - no deduplication
+        assert_eq!(classified.len(), 3);
+
+        // Find each classification
+        let has_dep = classified
+            .iter()
+            .find(|d| d.has_classification(Classification::Has))
+            .unwrap();
+        let should_dep = classified
+            .iter()
+            .find(|d| d.has_classification(Classification::Should))
+            .unwrap();
+        let can_dep = classified
+            .iter()
+            .find(|d| d.has_classification(Classification::Can))
+            .unwrap();
+
+        assert_eq!(has_dep.get_version(Classification::Has), Some("18.2.0"));
         assert_eq!(
-            classified[0].get_version(Classification::Has),
+            should_dep.get_version(Classification::Should),
             Some("18.2.0")
         );
-        assert_eq!(
-            classified[0].get_version(Classification::Should),
-            Some("18.2.0")
-        );
-        assert_eq!(
-            classified[0].get_version(Classification::Can),
-            Some("^18.0.0")
-        );
+        assert_eq!(can_dep.get_version(Classification::Can), Some("^18.0.0"));
     }
 
     #[test]
@@ -292,5 +304,42 @@ mod tests {
         assert!(classified[0]
             .dependencies
             .contains(&"scheduler".to_string()));
+    }
+
+    #[test]
+    fn test_classify_no_deduplication() {
+        let classifier = Classifier::new();
+
+        // Same package installed in two different locations
+        let installed = vec![
+            InstalledPackage::new(
+                "react".to_string(),
+                "18.2.0".to_string(),
+                PathBuf::from("/app1/node_modules/react"),
+                Ecosystem::Node,
+            ),
+            InstalledPackage::new(
+                "react".to_string(),
+                "18.2.0".to_string(),
+                PathBuf::from("/app2/node_modules/react"),
+                Ecosystem::Node,
+            ),
+        ];
+
+        let classified = classifier.classify(vec![], installed);
+
+        // Should have 2 separate entries, not deduplicated
+        assert_eq!(classified.len(), 2);
+        assert_eq!(classified[0].name, "react");
+        assert_eq!(classified[1].name, "react");
+
+        // Each should have different paths
+        let paths: Vec<_> = classified
+            .iter()
+            .filter_map(|d| d.installed_path.as_ref())
+            .collect();
+        assert_eq!(paths.len(), 2);
+        assert!(paths.contains(&&PathBuf::from("/app1/node_modules/react")));
+        assert!(paths.contains(&&PathBuf::from("/app2/node_modules/react")));
     }
 }

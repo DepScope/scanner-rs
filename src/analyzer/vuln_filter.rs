@@ -34,16 +34,10 @@ impl InfectedPackage {
             return true;
         }
 
-        // Check all classifications for version match
-        for classification in [
-            Classification::Has,
-            Classification::Should,
-            Classification::Can,
-        ] {
-            if let Some(dep_version) = dep.get_version(classification) {
-                if self.versions.contains(dep_version) {
-                    return true;
-                }
+        // Use primary version (Has > Should > Can) for matching
+        if let Some(dep_version) = dep.get_primary_version() {
+            if self.versions.contains(dep_version) {
+                return true;
             }
         }
 
@@ -52,16 +46,10 @@ impl InfectedPackage {
 
     /// Get the matched version from a dependency
     pub fn get_matched_version(&self, dep: &ClassifiedDependency) -> Option<String> {
-        // Check all classifications for version match
-        for classification in [
-            Classification::Has,
-            Classification::Should,
-            Classification::Can,
-        ] {
-            if let Some(dep_version) = dep.get_version(classification) {
-                if self.versions.is_empty() || self.versions.contains(dep_version) {
-                    return Some(dep_version.to_string());
-                }
+        // Use primary version (Has > Should > Can) for matching
+        if let Some(dep_version) = dep.get_primary_version() {
+            if self.versions.is_empty() || self.versions.contains(dep_version) {
+                return Some(dep_version.to_string());
             }
         }
         None
@@ -140,27 +128,68 @@ impl InfectedPackageFilter {
             .collect()
     }
 
-    /// Check if a dependency is infected
+    /// Check if a dependency is infected (exact match in HAS or SHOULD)
     pub fn is_infected(&self, dep: &ClassifiedDependency) -> bool {
-        if let Some(infected) = self.infected_packages.get(&dep.name) {
-            infected.matches(dep)
-        } else {
-            false
-        }
+        matches!(self.get_security_status(dep), SecurityStatus::Infected)
     }
 
     /// Get the security status for a dependency
     pub fn get_security_status(&self, dep: &ClassifiedDependency) -> SecurityStatus {
         if let Some(infected) = self.infected_packages.get(&dep.name) {
-            if infected.matches(dep) {
-                SecurityStatus::Infected
-            } else {
-                // Package name matches but version doesn't
-                SecurityStatus::MatchPackage
+            // Check HAS (installed) - exact match = INFECTED
+            if let Some(has_version) = dep.get_version(Classification::Has) {
+                if infected.versions.is_empty() || infected.versions.contains(has_version) {
+                    return SecurityStatus::Infected;
+                }
             }
+
+            // Check SHOULD (lockfile) - exact match = INFECTED
+            if let Some(should_version) = dep.get_version(Classification::Should) {
+                if infected.versions.is_empty() || infected.versions.contains(should_version) {
+                    return SecurityStatus::Infected;
+                }
+            }
+
+            // Check CAN (manifest/semver range) - could match = MATCH_VERSION
+            if let Some(can_version) = dep.get_version(Classification::Can) {
+                // Check if any infected version could satisfy the semver range
+                if self.semver_could_match(can_version, &infected.versions, dep.ecosystem) {
+                    return SecurityStatus::MatchVersion;
+                }
+            }
+
+            // Package name matches but no version match
+            SecurityStatus::MatchPackage
         } else {
             SecurityStatus::None
         }
+    }
+
+    /// Check if a semver range could match any of the infected versions
+    fn semver_could_match(
+        &self,
+        range: &str,
+        infected_versions: &HashSet<String>,
+        ecosystem: crate::models::Ecosystem,
+    ) -> bool {
+        use crate::analyzer::VersionMatcher;
+
+        // If no specific versions listed, any range could match
+        if infected_versions.is_empty() {
+            return true;
+        }
+
+        let matcher = VersionMatcher::new();
+
+        // Check if any infected version satisfies the range
+        for infected_version in infected_versions {
+            match matcher.satisfies_range(infected_version, range, ecosystem) {
+                Ok(true) => return true,
+                _ => continue,
+            }
+        }
+
+        false
     }
 
     /// Filter and sort by priority (HAS > SHOULD > CAN)
@@ -213,12 +242,26 @@ impl Default for InfectedPackageFilter {
 /// Security status for a dependency
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SecurityStatus {
-    /// No security issues
+    /// No security issues - package not on infected list
     None,
-    /// Package name matches infected list but version doesn't
+    /// Package name matches infected list but version doesn't match
     MatchPackage,
-    /// Package and version match infected list
+    /// Semver range (CAN) could include an infected version
+    MatchVersion,
+    /// Exact version match in HAS or SHOULD (installed or locked)
     Infected,
+}
+
+impl SecurityStatus {
+    /// Get priority for sorting (lower = higher priority)
+    pub fn priority(&self) -> u8 {
+        match self {
+            SecurityStatus::Infected => 0,
+            SecurityStatus::MatchVersion => 1,
+            SecurityStatus::MatchPackage => 2,
+            SecurityStatus::None => 3,
+        }
+    }
 }
 
 impl std::fmt::Display for SecurityStatus {
@@ -226,6 +269,7 @@ impl std::fmt::Display for SecurityStatus {
         match self {
             SecurityStatus::None => write!(f, "NONE"),
             SecurityStatus::MatchPackage => write!(f, "MATCH_PACKAGE"),
+            SecurityStatus::MatchVersion => write!(f, "MATCH_VERSION"),
             SecurityStatus::Infected => write!(f, "INFECTED"),
         }
     }
@@ -379,6 +423,31 @@ mod tests {
     }
 
     #[test]
+    fn test_security_status_match_version_semver() {
+        let mut filter = InfectedPackageFilter::new();
+        let mut versions = HashSet::new();
+        versions.insert("1.0.1".to_string());
+        filter.add_infected_package(InfectedPackage::new(
+            "zapier-async-storage".to_string(),
+            versions,
+        ));
+
+        let mut dep =
+            ClassifiedDependency::new("zapier-async-storage".to_string(), Ecosystem::Node);
+        // Semver range that includes 1.0.1
+        dep.add_classification(
+            Classification::Can,
+            "^1.0.0".to_string(),
+            PathBuf::from("/app/package.json"),
+        );
+
+        assert_eq!(
+            filter.get_security_status(&dep),
+            SecurityStatus::MatchVersion
+        );
+    }
+
+    #[test]
     fn test_security_status_infected() {
         let mut filter = InfectedPackageFilter::new();
         let mut versions = HashSet::new();
@@ -402,16 +471,11 @@ mod tests {
     #[test]
     fn test_filter_and_sort_by_priority() {
         let mut filter = InfectedPackageFilter::new();
-        filter.add_infected_package(InfectedPackage::new("react".to_string(), HashSet::new()));
+        let mut versions = HashSet::new();
+        versions.insert("18.2.0".to_string());
+        filter.add_infected_package(InfectedPackage::new("react".to_string(), versions));
 
         // Create deps with different classifications
-        let mut dep_can = ClassifiedDependency::new("react".to_string(), Ecosystem::Node);
-        dep_can.add_classification(
-            Classification::Can,
-            "^18.0.0".to_string(),
-            PathBuf::from("/app/package.json"),
-        );
-
         let mut dep_has = ClassifiedDependency::new("react".to_string(), Ecosystem::Node);
         dep_has.add_classification(
             Classification::Has,
@@ -427,14 +491,13 @@ mod tests {
         );
 
         // Add in reverse priority order
-        let sorted = filter.filter_and_sort(vec![dep_can, dep_should, dep_has]);
+        let sorted = filter.filter_and_sort(vec![dep_should, dep_has]);
 
-        assert_eq!(sorted.len(), 3);
+        // Only HAS and SHOULD are INFECTED (exact match), CAN would be MATCH_VERSION
+        assert_eq!(sorted.len(), 2);
         // HAS should be first
         assert!(sorted[0].has_classification(Classification::Has));
         // SHOULD should be second
         assert!(sorted[1].has_classification(Classification::Should));
-        // CAN should be last
-        assert!(sorted[2].has_classification(Classification::Can));
     }
 }

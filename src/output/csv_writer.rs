@@ -57,6 +57,8 @@ pub fn write_classified_csv_with_security(
     // Write header
     writer.write_record([
         "package_name",
+        "package_name_path",
+        "version",
         "ecosystem",
         "application_name",
         "application_root",
@@ -123,8 +125,13 @@ pub fn write_classified_csv_with_security(
             "NONE".to_string()
         };
 
+        let package_name_path = dep.package_name_path.as_deref().unwrap_or("");
+        let version = dep.get_primary_version().unwrap_or("");
+
         writer.write_record([
             &dep.name,
+            package_name_path,
+            version,
             &dep.ecosystem.to_string(),
             application_name,
             &application_root,

@@ -73,8 +73,11 @@ impl std::fmt::Display for Classification {
 /// A dependency with multiple classifications and associated metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClassifiedDependency {
-    /// Package name
+    /// Package name (just the package name, e.g., "make-fetch-happen")
     pub name: String,
+
+    /// Package name with path (e.g., "npm-registry-fetch/node_modules/make-fetch-happen")
+    pub package_name_path: Option<String>,
 
     /// Classifications with their associated versions
     /// - Has: exact installed version
@@ -119,6 +122,7 @@ impl ClassifiedDependency {
     pub fn new(name: String, ecosystem: Ecosystem) -> Self {
         Self {
             name,
+            package_name_path: None,
             classifications: HashMap::new(),
             ecosystem,
             application_root: None,
@@ -131,6 +135,13 @@ impl ClassifiedDependency {
             dependencies: Vec::new(),
             security: None,
         }
+    }
+
+    /// Get the primary version (Has > Should > Can)
+    pub fn get_primary_version(&self) -> Option<&str> {
+        self.get_version(Classification::Has)
+            .or_else(|| self.get_version(Classification::Should))
+            .or_else(|| self.get_version(Classification::Can))
     }
 
     /// Add a classification with version and source file
