@@ -1,6 +1,6 @@
 [package]
 name = "scanner"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["Jacob Verhoeks <jacdob@verhoeks.org>"]
 description = "A tool to scan directories for npm package compatibility"
