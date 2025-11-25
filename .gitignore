@@ -19,6 +19,7 @@ Thumbs.db
 
 # Output files
 output.csv
+full.csv
 *.backup
 
 # Logs
