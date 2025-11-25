@@ -585,7 +585,18 @@ scanner --verbose --dir /path/to/project
 
 ## Documentation
 
-- [Supply Chain Security Guide](docs/SCAN_SUPPLYCHAIN.md) - Comprehensive guide for detecting and remediating infected packages
-- [Infected Package Detection](docs/INFECTED_PACKAGE_DETECTION.md) - Technical details on the infected package detection system
-- [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md) - Overview of the HAS/SHOULD/CAN classification system
-- [Pre-commit Hooks](PRE_COMMIT_HOOKS.md) - Development workflow and git hooks
+### User Guides
+
+- [Supply Chain Security Guide](docs/SCAN_SUPPLYCHAIN.md) - Detecting and remediating infected packages
+- [Infected Package Detection](docs/INFECTED_PACKAGE_DETECTION.md) - Technical details on detection system
+- [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md) - HAS/SHOULD/CAN classification system
+
+### Developer Guides
+
+- [Build and Release Guide](docs/BUILD_AND_RELEASE.md) - Building for all platforms and creating releases
+- [Cross-Compilation](docs/CROSS_COMPILE.md) - Detailed cross-compilation guide
+- [Docker Builds](docs/DOCKER_BUILDS.md) - Docker-based Linux builds
+- [Pre-commit Hooks](docs/PRE_COMMIT_HOOKS.md) - Development workflow and git hooks
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+
+See [docs/README.md](docs/README.md) for complete documentation index.
