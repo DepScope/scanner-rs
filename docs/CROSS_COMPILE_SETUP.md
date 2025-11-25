@@ -36,8 +36,6 @@ rustup target add aarch64-apple-darwin   # Apple Silicon
 # 5. Verify installation
 rustup show
 rustup target list --installed
-```bash
-
 ```
 
 ### Option 2: Keep Homebrew Rust (Limited)
@@ -50,8 +48,6 @@ After installing rustup, test cross-compilation:
 
 ```bash
 ./cross-compile.sh
-```bash
-
 ```
 
 This will:
@@ -68,8 +64,6 @@ This will:
 ```bash
 # This will build for both x86_64 and aarch64
 ./release.sh --patch
-```bash
-
 ```
 
 ### Without rustup (Native Only)
@@ -77,8 +71,6 @@ This will:
 ```bash
 # This will only build for your current architecture
 ./release.sh --patch --no-cross-compile
-```bash
-
 ```
 
 Or the script will automatically skip cross-compilation if rustup isn't available.
@@ -95,8 +87,6 @@ find target -name scanner -type f -path "*/release/*" -exec ls -lh {} \;
 file target/release/scanner
 file target/x86_64-apple-darwin/release/scanner
 file target/aarch64-apple-darwin/release/scanner
-```bash
-
 ```
 
 ## Troubleshooting
@@ -107,8 +97,6 @@ Restart your terminal or run:
 
 ```bash
 source $HOME/.cargo/env
-```bash
-
 ```
 
 ### Homebrew and rustup conflict
@@ -118,8 +106,6 @@ If you have both, rustup should take precedence. Check your PATH:
 ```bash
 which cargo
 which rustc
-```bash
-
 ```
 
 Should show paths like `~/.cargo/bin/cargo` (rustup) not `/opt/homebrew/bin/cargo` (Homebrew).
@@ -128,8 +114,6 @@ To remove Homebrew's Rust:
 
 ```bash
 brew uninstall rust
-```bash
-
 ```
 
 ### Cross-compilation fails
@@ -138,8 +122,6 @@ Make sure you have Xcode Command Line Tools:
 
 ```bash
 xcode-select --install
-```bash
-
 ```
 
 ## Linux Cross-Compilation
@@ -152,8 +134,6 @@ cargo install cross
 # Then you can build for different Linux architectures
 cross build --release --target x86_64-unknown-linux-gnu
 cross build --release --target aarch64-unknown-linux-gnu
-```bash
-
 ```
 
 ## Summary

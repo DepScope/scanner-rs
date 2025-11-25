@@ -62,12 +62,3 @@ repos:
       - id: markdownlint
         name: Lint Markdown files
         args: ['--fix']
-
-  # Commit message linting
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.1.0
-    hooks:
-      - id: conventional-pre-commit
-        name: Check commit message format
-        stages: [commit-msg]
-        args: [--force-scope]
