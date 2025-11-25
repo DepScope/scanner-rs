@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # Colors for output
@@ -120,15 +120,30 @@ fi
 
 # Check: Cross-compilation capability
 if command -v rustup &> /dev/null; then
-    ACTIVE_TOOLCHAIN=$(rustup show active-toolchain 2>&1 || true)
-    if [[ "$ACTIVE_TOOLCHAIN" == *"no active toolchain"* ]] || [[ "$ACTIVE_TOOLCHAIN" == *"error"* ]]; then
-        echo -e "  ${YELLOW}⚠${NC} rustup found but no active toolchain"
-        echo -e "    Using Homebrew Rust - limited to native builds"
-        echo -e "    To enable cross-compilation: ${YELLOW}rustup default stable${NC}"
+    CARGO_PATH=$(which cargo)
+    RUSTC_SYSROOT=$(rustc --print sysroot 2>&1 || echo "unknown")
+
+    if [[ "$CARGO_PATH" == *"homebrew"* ]] || [[ "$RUSTC_SYSROOT" == *"homebrew"* ]]; then
+        echo -e "  ${YELLOW}⚠${NC} Homebrew's Rust detected (limited to native builds)"
+        echo -e "    For cross-compilation, remove Homebrew Rust: ${YELLOW}brew uninstall rust${NC}"
+        echo -e "    Or adjust PATH: ${YELLOW}export PATH=\"\$HOME/.cargo/bin:\$PATH\"${NC}"
         CAN_CROSS_COMPILE=false
     else
-        echo -e "  ${GREEN}✓${NC} rustup configured (cross-compilation enabled)"
-        CAN_CROSS_COMPILE=true
+        ACTIVE_TOOLCHAIN=$(rustup show active-toolchain 2>&1 || true)
+        if [[ "$ACTIVE_TOOLCHAIN" == *"no active toolchain"* ]] || [[ "$ACTIVE_TOOLCHAIN" == *"error"* ]]; then
+            echo -e "  ${YELLOW}⚠${NC} rustup found but no active toolchain"
+            echo -e "    To enable cross-compilation: ${YELLOW}rustup default stable${NC}"
+            CAN_CROSS_COMPILE=false
+        else
+            echo -e "  ${GREEN}✓${NC} rustup configured (cross-compilation enabled)"
+            CAN_CROSS_COMPILE=true
+
+            # Ensure cargo is in PATH
+            if ! command -v cargo &> /dev/null; then
+                TOOLCHAIN_PATH=$(rustup which cargo | xargs dirname)
+                export PATH="$TOOLCHAIN_PATH:$PATH"
+            fi
+        fi
     fi
 else
     echo -e "  ${YELLOW}⚠${NC} rustup not found (limited to native builds)"
@@ -270,20 +285,37 @@ NATIVE_BINARY="scanner-${NEW_VERSION}-${OS}-${ARCH_NAME}"
 cp target/release/scanner "$RELEASE_DIR/${NATIVE_BINARY}"
 echo -e "  ${GREEN}✓${NC} Built ${YELLOW}${NATIVE_BINARY}${NC} (native)"
 
+# Check if Docker is available for Linux builds
+DOCKER_AVAILABLE=false
+if command -v docker &> /dev/null; then
+    if docker info &> /dev/null 2>&1; then
+        DOCKER_AVAILABLE=true
+        echo -e "  ${GREEN}✓${NC} Docker available for Linux builds"
+    fi
+fi
+
 # Cross-compile if possible
-if [ "$CAN_CROSS_COMPILE" = true ] && [ "$OS" = "darwin" ]; then
+if [ "$CAN_CROSS_COMPILE" = true ]; then
     echo ""
-    echo -e "  ${BLUE}Cross-compiling for macOS...${NC}"
+    echo -e "  ${BLUE}Cross-compiling for all platforms...${NC}"
 
-    TARGETS=("x86_64-apple-darwin" "aarch64-apple-darwin")
+    # Define all target platforms
+    declare -A TARGETS=(
+        ["aarch64-apple-darwin"]="darwin-arm64"
+        ["x86_64-apple-darwin"]="darwin-amd64"
+        ["x86_64-unknown-linux-gnu"]="linux-amd64"
+        ["i686-unknown-linux-gnu"]="linux-x86"
+        ["x86_64-pc-windows-gnu"]="windows-amd64"
+    )
 
-    for TARGET in "${TARGETS[@]}"; do
-        # Skip native target
-        if [[ "$TARGET" == *"$ARCH_NAME"* ]]; then
+    for TARGET in "${!TARGETS[@]}"; do
+        PLATFORM_NAME="${TARGETS[$TARGET]}"
+
+        # Skip native target if already built
+        if [ "$OS" = "darwin" ] && [[ "$TARGET" == *"$ARCH_NAME"* ]]; then
+            echo -e "  ${YELLOW}→${NC} Skipping ${PLATFORM_NAME} (already built as native)"
             continue
         fi
-
-        TARGET_ARCH=$(echo "$TARGET" | cut -d'-' -f1)
 
         # Install target if needed
         if ! rustup target list --installed | grep -q "$TARGET"; then
@@ -292,39 +324,51 @@ if [ "$CAN_CROSS_COMPILE" = true ] && [ "$OS" = "darwin" ]; then
         fi
 
         # Build
-        echo -e "  ${YELLOW}→${NC} Building for ${TARGET}..."
+        echo -e "  ${YELLOW}→${NC} Building for ${PLATFORM_NAME}..."
+
+        # Determine binary extension
+        BINARY_EXT=""
+        if [[ "$TARGET" == *"windows"* ]]; then
+            BINARY_EXT=".exe"
+        fi
+
+        # Try native build first
         if cargo build --release --target "$TARGET" > /dev/null 2>&1; then
-            BINARY_NAME="scanner-${NEW_VERSION}-darwin-${TARGET_ARCH}"
-            cp "target/${TARGET}/release/scanner" "$RELEASE_DIR/${BINARY_NAME}"
+            BINARY_NAME="scanner-${NEW_VERSION}-${PLATFORM_NAME}${BINARY_EXT}"
+            cp "target/${TARGET}/release/scanner${BINARY_EXT}" "$RELEASE_DIR/${BINARY_NAME}"
             echo -e "  ${GREEN}✓${NC} Built ${YELLOW}${BINARY_NAME}${NC}"
         else
-            echo -e "  ${RED}✗${NC} Failed to build for ${TARGET}"
+            # Try Docker fallback for Linux targets
+            if [[ "$TARGET" == *"linux-gnu"* ]] && [ "$DOCKER_AVAILABLE" = true ]; then
+                echo -e "  ${BLUE}→${NC} Trying Docker build for ${PLATFORM_NAME}..."
+
+                # Determine Docker platform
+                if [[ "$TARGET" == "i686-unknown-linux-gnu" ]]; then
+                    DOCKER_PLATFORM="--platform linux/386"
+                else
+                    DOCKER_PLATFORM="--platform linux/amd64"
+                fi
+
+                # Build using Docker
+                if docker run --rm $DOCKER_PLATFORM \
+                    -v "$PWD:/workspace" \
+                    -w /workspace \
+                    rust:latest \
+                    bash -c "rustup target add $TARGET && cargo build --release --target $TARGET" > /dev/null 2>&1; then
+                    BINARY_NAME="scanner-${NEW_VERSION}-${PLATFORM_NAME}${BINARY_EXT}"
+                    cp "target/${TARGET}/release/scanner${BINARY_EXT}" "$RELEASE_DIR/${BINARY_NAME}"
+                    echo -e "  ${GREEN}✓${NC} Built ${YELLOW}${BINARY_NAME}${NC} (Docker)"
+                else
+                    echo -e "  ${RED}✗${NC} Docker build also failed for ${PLATFORM_NAME}"
+                fi
+            else
+                echo -e "  ${RED}✗${NC} Failed to build for ${PLATFORM_NAME}"
+                if [[ "$TARGET" == *"linux-gnu"* ]] && [ "$DOCKER_AVAILABLE" = false ]; then
+                    echo -e "      ${YELLOW}Hint:${NC} Install Docker to enable Linux builds"
+                fi
+            fi
         fi
     done
-elif [ "$CAN_CROSS_COMPILE" = true ] && [ "$OS" = "linux" ]; then
-    if command -v cross &> /dev/null; then
-        echo ""
-        echo -e "  ${BLUE}Cross-compiling for Linux...${NC}"
-
-        TARGETS=("x86_64-unknown-linux-gnu" "aarch64-unknown-linux-gnu")
-
-        for TARGET in "${TARGETS[@]}"; do
-            if [[ "$TARGET" == *"$ARCH_NAME"* ]]; then
-                continue
-            fi
-
-            TARGET_ARCH=$(echo "$TARGET" | cut -d'-' -f1)
-
-            echo -e "  ${YELLOW}→${NC} Building for ${TARGET}..."
-            if cross build --release --target "$TARGET" > /dev/null 2>&1; then
-                BINARY_NAME="scanner-${NEW_VERSION}-linux-${TARGET_ARCH}"
-                cp "target/${TARGET}/release/scanner" "$RELEASE_DIR/${BINARY_NAME}"
-                echo -e "  ${GREEN}✓${NC} Built ${YELLOW}${BINARY_NAME}${NC}"
-            else
-                echo -e "  ${RED}✗${NC} Failed to build for ${TARGET}"
-            fi
-        done
-    fi
 else
     echo ""
     echo -e "  ${YELLOW}⚠${NC} Cross-compilation not available"
@@ -362,23 +406,46 @@ RELEASE_NOTES="Release v${NEW_VERSION}
 
 ## Installation
 
-Download the appropriate binary for your system and make it executable:
+Download the appropriate binary for your system:
+
+### macOS
 
 \`\`\`bash
-# macOS Apple Silicon (M1/M2/M3)
-curl -L https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-darwin-aarch64 -o scanner
+# Apple Silicon (M1/M2/M3/M4)
+curl -L https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-darwin-arm64 -o scanner
 chmod +x scanner
 sudo mv scanner /usr/local/bin/
 
-# macOS Intel
-curl -L https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-darwin-x86_64 -o scanner
+# Intel
+curl -L https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-darwin-amd64 -o scanner
+chmod +x scanner
+sudo mv scanner /usr/local/bin/
+\`\`\`
+
+### Linux
+
+\`\`\`bash
+# x86_64 (AMD64)
+curl -L https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-linux-amd64 -o scanner
 chmod +x scanner
 sudo mv scanner /usr/local/bin/
 
-# Linux x86_64
-curl -L https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-linux-x86_64 -o scanner
+# x86 (32-bit)
+curl -L https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-linux-x86 -o scanner
 chmod +x scanner
 sudo mv scanner /usr/local/bin/
+\`\`\`
+
+### Windows
+
+Download the \`.exe\` file and add it to your PATH, or run directly:
+
+\`\`\`powershell
+# Download to current directory
+Invoke-WebRequest -Uri https://github.com/${REPO}/releases/download/v${NEW_VERSION}/scanner-${NEW_VERSION}-windows-amd64.exe -OutFile scanner.exe
+
+# Run
+.\\scanner.exe --help
 \`\`\`
 
 ## Binaries
